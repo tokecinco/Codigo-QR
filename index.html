@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Toke QR — Servicios QR para Negocios</title>
+  <title>Toke QR — Plataforma Tecnológica de Servicios QR</title>
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -12,48 +12,79 @@
     <div class="navbar-inner">
       <a href="index.html" class="brand">
         <span class="brand-icon"><i data-lucide="qr-code"></i></span>
-        <span>Toke QR</span>
+        <span>Toke <span style="color:var(--turquoise-bright);">QR</span></span>
       </a>
       <div class="flex gap-1">
-        <a href="panel.html" class="btn btn-secondary btn-sm">Mi Negocio</a>
-        <a href="admin.html" class="btn btn-outline btn-sm">Admin</a>
+        <a href="panel.html" class="btn btn-secondary btn-sm">
+          <i data-lucide="store" style="width:15px;height:15px;"></i>
+          Mi Negocio
+        </a>
+        <a href="admin.html" class="btn btn-outline btn-sm">
+          <i data-lucide="shield-check" style="width:15px;height:15px;"></i>
+          Admin
+        </a>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <section class="hero">
+    <!-- Sección Principal -->
+    <section class="landing-hero">
       <div class="hero-badge">
-        <i data-lucide="sparkles" style="width:14px;height:14px;"></i>
-        Plataforma QR para Comercios
+        <i data-lucide="zap" style="width:14px;height:14px;color:var(--turquoise-bright);"></i>
+        Plataforma Inteligente de Servicios QR
       </div>
-      <h1>Turnos y Menús QR en segundos, sin complicaciones</h1>
+      <h1>
+        Conecta tu comercio con <span class="gradient-text">experiencias QR</span> rápidas y modernas
+      </h1>
       <p>
-        Digitaliza la atención de tu negocio con códigos QR listos para imprimir,
-        gestión simple y avisos directos por WhatsApp.
+        Gestiona turnos online y catálogos interactivos desde el celular,
+        con códigos QR listos para imprimir y avisos directos por WhatsApp.
       </p>
+      <div class="hero-pills">
+        <span class="tech-pill">
+          <i data-lucide="smartphone" style="width:14px;height:14px;color:var(--turquoise-bright);"></i>
+          100% móvil
+        </span>
+        <span class="tech-pill">
+          <i data-lucide="download" style="width:14px;height:14px;color:#c4b5fd;"></i>
+          QR en PNG al instante
+        </span>
+        <span class="tech-pill">
+          <i data-lucide="message-circle" style="width:14px;height:14px;color:#4ade80;"></i>
+          WhatsApp integrado
+        </span>
+      </div>
     </section>
 
-    <!-- Acceso rápido con código -->
-    <section class="container-sm" style="padding-left:0;padding-right:0;">
-      <div class="card">
+    <!-- Acceso Rápido por Código Único -->
+    <section class="container-sm" style="padding:0;margin-bottom:22px;">
+      <div class="glass-access-card">
         <div class="flex-between mb-2">
           <div>
-            <h2 style="font-size:1.1rem;color:var(--dark);">Acceso para Negocios</h2>
-            <p class="text-sm text-muted">Ingresa con tu código único, sin correo ni registro.</p>
+            <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.06em;">
+              Acceso Privado
+            </span>
+            <h2 style="font-size:1.15rem;color:#ffffff;margin-top:2px;">Ingresa a tu Negocio</h2>
+            <p class="text-xs" style="color:#94a3b8;margin-top:2px;">
+              Solo con tu código único. Sin correos ni contraseñas.
+            </p>
           </div>
-          <i data-lucide="key-round" style="color:var(--primary);"></i>
+          <div class="brand-icon" style="background:rgba(124,58,237,0.25);border:1px solid rgba(139,92,246,0.45);">
+            <i data-lucide="key-round"></i>
+          </div>
         </div>
-        <form id="quickAccessForm" class="flex gap-2" style="flex-wrap:wrap;">
+
+        <form id="quickAccessForm" class="flex gap-2 mt-2" style="flex-wrap:wrap;">
           <input
             type="text"
             id="quickCodeInput"
             class="input"
-            placeholder="Ej: TOKE-XXXX"
+            placeholder="Ej: TOKE-XXXX-XXXX"
             style="flex:1;min-width:180px;text-transform:uppercase;"
             required
           />
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-electric">
             Entrar al Panel
             <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
           </button>
@@ -61,34 +92,84 @@
       </div>
     </section>
 
-    <!-- Servicios -->
-    <section class="grid-2 mt-4">
-      <div class="card">
-        <div class="brand-icon mb-2" style="background:var(--primary-soft);color:var(--primary);">
-          <i data-lucide="calendar-clock"></i>
+    <!-- Secciones Diferenciadas: Turnos QR y Menú QR -->
+    <section class="grid-2">
+      <!-- Turnos QR (Identidad Violeta Eléctrico) -->
+      <article class="service-showcase service-showcase-violet">
+        <div>
+          <div class="flex-between mb-2">
+            <span class="showcase-icon-violet">
+              <i data-lucide="calendar-clock"></i>
+            </span>
+            <span class="badge" style="background:rgba(124,58,237,0.22);color:#ddd6fe;border:1px solid rgba(139,92,246,0.4);">
+              Reservas ágiles
+            </span>
+          </div>
+          <h3 style="font-size:1.22rem;color:#ffffff;margin-bottom:6px;">Turnos QR</h3>
+          <p class="text-sm" style="color:#cbd5e1;">
+            Ideal para barberías, consultorios, estética y servicios por cita previa.
+          </p>
+          <ul class="feature-list">
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
+              Reserva en segundos con nombre y WhatsApp
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
+              Control de pendientes, confirmados y atendidos
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
+              Confirmación directa con un toque
+            </li>
+          </ul>
         </div>
-        <h3 style="font-size:1.15rem;color:var(--dark);margin-bottom:6px;">Turnos QR</h3>
-        <p class="text-sm text-muted">
-          Tus clientes escanean el QR, eligen el servicio, dejan su nombre y WhatsApp,
-          y tú administras cada turno desde tu panel con aviso directo por WhatsApp.
-        </p>
-      </div>
+        <a href="panel.html" class="btn btn-primary btn-block">
+          <i data-lucide="calendar-plus" style="width:16px;height:16px;"></i>
+          Administrar Turnos QR
+        </a>
+      </article>
 
-      <div class="card">
-        <div class="brand-icon mb-2" style="background:var(--success-soft);color:var(--success);">
-          <i data-lucide="utensils"></i>
+      <!-- Menú y Catálogos QR (Identidad Turquesa) -->
+      <article class="service-showcase service-showcase-turquoise">
+        <div>
+          <div class="flex-between mb-2">
+            <span class="showcase-icon-turquoise">
+              <i data-lucide="utensils"></i>
+            </span>
+            <span class="badge" style="background:rgba(6,182,212,0.2);color:#a5f3fc;border:1px solid rgba(45,212,191,0.4);">
+              Catálogo + Pedidos
+            </span>
+          </div>
+          <h3 style="font-size:1.22rem;color:#ffffff;margin-bottom:6px;">Menú y Catálogos QR</h3>
+          <p class="text-sm" style="color:#cbd5e1;">
+            Pensado para bares, restaurantes, cafeterías y tiendas con venta ágil.
+          </p>
+          <ul class="feature-list">
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
+              Productos con fotos, categorías y colores propios
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
+              Recepción de pedidos en tiempo real
+            </li>
+            <li>
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
+              Aviso por WhatsApp cuando el pedido está listo
+            </li>
+          </ul>
         </div>
-        <h3 style="font-size:1.15rem;color:var(--dark);margin-bottom:6px;">Menú y Catálogos QR</h3>
-        <p class="text-sm text-muted">
-          Muestra productos con fotos, precios y categorías personalizadas. Ideal para
-          bares, restaurantes y tiendas que reciben pedidos por QR y avisan cuando están listos.
-        </p>
-      </div>
+        <a href="panel.html" class="btn btn-turquoise btn-block">
+          <i data-lucide="layout-grid" style="width:16px;height:16px;"></i>
+          Gestionar Menú y Pedidos
+        </a>
+      </article>
     </section>
   </main>
 
-  <footer class="text-center text-xs text-muted mt-4" style="padding:24px 16px;">
-    © <span id="year"></span> Toke QR — Plataforma Comercial de Servicios QR
+  <footer class="text-center text-xs text-muted mt-4" style="padding:22px 16px;">
+    © <span id="year"></span> <strong>Toke QR</strong> — Tecnología QR para Negocios
   </footer>
 
   <script>
@@ -103,4 +184,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
