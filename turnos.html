@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solicitar Turno — Toke QR</title>
+  <title>Turnos por Número — Toke QR</title>
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -11,7 +11,7 @@
   <header class="navbar">
     <div class="navbar-inner">
       <div class="brand">
-        <span class="brand-icon" id="bizBrandIcon"><i data-lucide="calendar-clock"></i></span>
+        <span class="brand-icon" id="bizBrandIcon"><i data-lucide="hash"></i></span>
         <div>
           <div id="bizNameHeader" style="line-height:1.15;">Cargando...</div>
           <div id="bizCategoryHeader" class="text-xs text-muted" style="font-weight:500;">Turnos QR</div>
@@ -24,13 +24,11 @@
     </div>
   </header>
 
-  <main class="container-sm" style="padding-top:20px;padding-bottom:40px;">
-    <!-- Estado de carga -->
+  <main class="container-sm" style="padding-top:18px;padding-bottom:40px;">
     <div id="turnosLoading" class="card text-center">
-      <p class="text-muted">Cargando servicios disponibles...</p>
+      <p class="text-muted">Cargando fila de turnos...</p>
     </div>
 
-    <!-- Estado no disponible / vencido / límite alcanzado -->
     <div id="turnosUnavailable" class="card text-center hidden">
       <div class="brand-icon" style="margin:0 auto 12px;background:var(--danger-soft);color:var(--danger);">
         <i data-lucide="calendar-x"></i>
@@ -45,56 +43,82 @@
       </a>
     </div>
 
-    <!-- Formulario de solicitud de turno -->
-    <div id="turnosFormView" class="hidden">
-      <div class="card mb-3">
-        <h1 style="font-size:1.2rem;color:var(--dark);margin-bottom:4px;">Solicitar un turno</h1>
-        <p class="text-sm text-muted">Elige un servicio, completa tus datos y confirma.</p>
+    <!-- Tablero en vivo de la fila (siempre visible cuando está activo) -->
+    <div id="turnosQueueBoard" class="queue-board mb-3 hidden">
+      <div class="flex-between mb-2">
+        <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.06em;">
+          Estado de la fila en vivo
+        </span>
+        <span class="badge" style="background:rgba(45,212,191,0.16);color:#5eead4;">En tiempo real</span>
+      </div>
+      <div class="grid-3" style="gap:8px;text-align:center;">
+        <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;">
+          <div class="text-xs" style="color:#94a3b8;">Van por el</div>
+          <div id="liveCurrentNum" style="font-size:1.55rem;font-weight:800;color:var(--turquoise-bright);">#0</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;">
+          <div class="text-xs" style="color:#94a3b8;">Último sacado</div>
+          <div id="liveLastNum" style="font-size:1.55rem;font-weight:800;color:#ffffff;">#0</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;">
+          <div class="text-xs" style="color:#94a3b8;">En espera</div>
+          <div id="liveWaitingNum" style="font-size:1.55rem;font-weight:800;color:#c4b5fd;">0</div>
+        </div>
       </div>
 
+      <div id="mySavedTicketBanner" class="flex-between flex-wrap gap-2 mt-3 hidden" style="background:rgba(124,58,237,0.25);border:1px solid rgba(139,92,246,0.45);border-radius:12px;padding:10px 12px;">
+        <div class="text-sm" style="color:#ffffff;" id="mySavedTicketText">Tu turno activo</div>
+        <button id="viewMyTicketBtn" type="button" class="btn btn-sm btn-electric">Ver mi número</button>
+      </div>
+    </div>
+
+    <!-- Formulario para sacar número -->
+    <div id="turnosFormView" class="hidden">
       <form id="bookAppointmentForm" class="card">
+        <h1 style="font-size:1.2rem;color:var(--dark);margin-bottom:4px;">Sacar número de turno</h1>
+        <p class="text-sm text-muted mb-3">Elige un servicio, ingresa tus datos y recibe tu número al instante.</p>
+
         <div class="form-group">
           <label class="form-label">1. Elige el servicio *</label>
           <div id="servicesOptionsList" class="grid" style="gap:10px;"></div>
           <input type="hidden" id="selectedServiceId" required />
         </div>
 
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label" for="appDate">2. Fecha *</label>
-            <input type="date" id="appDate" class="input" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="appTime">Hora preferida *</label>
-            <input type="time" id="appTime" class="input" required />
-          </div>
-        </div>
-
         <div class="form-group">
-          <label class="form-label" for="customerName">3. Tu nombre completo *</label>
+          <label class="form-label" for="customerName">2. Tu nombre completo *</label>
           <input type="text" id="customerName" class="input" placeholder="Ej: Juan Pérez" required />
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="customerPhone">4. Tu número de WhatsApp *</label>
+          <label class="form-label" for="customerPhone">3. Tu número de WhatsApp *</label>
           <input type="tel" id="customerPhone" class="input" placeholder="Ej: 5491122334455" required />
-          <span class="text-xs text-muted">Lo usaremos para confirmar tu turno por WhatsApp.</span>
+          <span class="text-xs text-muted">Te avisaremos por WhatsApp cuando se acerque tu turno.</span>
         </div>
 
         <button type="submit" id="submitAppointmentBtn" class="btn btn-primary btn-block mt-2">
-          Confirmar solicitud de turno
+          Sacar mi número de turno
         </button>
       </form>
     </div>
 
-    <!-- Confirmación exitosa -->
+    <!-- Confirmación con seguimiento en vivo -->
     <div id="turnosSuccessView" class="card text-center hidden">
-      <div class="brand-icon" style="margin:0 auto 14px;width:54px;height:54px;background:var(--success-soft);color:var(--success);">
-        <i data-lucide="check-circle-2"></i>
+      <span class="text-xs font-bold text-muted" style="text-transform:uppercase;letter-spacing:0.06em;">Tu número de turno</span>
+      <div id="myTicketBigNum" style="font-size:3.2rem;font-weight:800;color:var(--primary);line-height:1.1;margin:6px 0;">#0</div>
+
+      <div class="grid-2 mb-3" style="gap:10px;">
+        <div class="card card-compact" style="background:rgba(255,255,255,0.72);">
+          <div class="text-xs text-muted">Van por el</div>
+          <strong id="liveTrackerCurrent" style="font-size:1.25rem;color:var(--dark);">#0</strong>
+        </div>
+        <div class="card card-compact" style="background:rgba(255,255,255,0.72);">
+          <div class="text-xs text-muted">Te faltan</div>
+          <strong id="liveTrackerRemaining" style="font-size:1.25rem;color:var(--primary);">0</strong>
+        </div>
       </div>
-      <h2 style="font-size:1.3rem;color:var(--dark);">¡Turno solicitado!</h2>
-      <p class="text-sm text-muted mt-1 mb-3">
-        Tu solicitud quedó registrada como <strong>pendiente</strong>. El negocio te confirmará por WhatsApp.
+
+      <p id="liveTrackerMsg" class="text-sm font-bold mb-3" style="color:var(--dark);">
+        Espera tu llamado...
       </p>
 
       <div class="card card-compact text-sm mb-3" style="background:var(--bg);text-align:left;" id="successSummary"></div>
@@ -117,4 +141,4 @@
 
   <script type="module" src="js/turnos-public.js"></script>
 </body>
-        </html>
+  </html>
