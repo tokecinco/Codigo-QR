@@ -25,7 +25,6 @@
     </div>
   </header>
 
-  <!-- Pantalla de ingreso por código único -->
   <main id="panelLoginView" class="container-sm" style="padding-top:42px;">
     <div class="card">
       <div class="text-center mb-3">
@@ -56,9 +55,7 @@
     </div>
   </main>
 
-  <!-- Dashboard Privado del Negocio -->
   <main id="panelDashboardView" class="container hidden">
-    <!-- Alerta de servicio suspendido o vencido -->
     <div id="expiredAlert" class="card mb-3 hidden" style="border-color:#fecaca;background:var(--danger-soft);">
       <div class="flex gap-2">
         <i data-lucide="alert-triangle" style="color:var(--danger);flex-shrink:0;"></i>
@@ -71,7 +68,6 @@
       </div>
     </div>
 
-    <!-- Resumen de Paquete y Límites -->
     <section class="card mb-3">
       <div class="flex-between flex-wrap gap-2 mb-2">
         <div>
@@ -101,16 +97,15 @@
             <strong id="productsQuotaText">0 / 0</strong>
           </div>
           <div class="progress-bar">
-            <div id="productsQuotaBar" class="progress-fill" style="width:0%;background:var(--success);"></div>
+            <div id="productsQuotaBar" class="progress-fill" style="width:0%;"></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Pestañas -->
     <nav class="tabs">
       <button class="tab-btn active" data-tab="turnos" id="tabBtnTurnos">
-        <i data-lucide="calendar-clock" style="width:16px;height:16px;"></i>
+        <i data-lucide="hash" style="width:16px;height:16px;"></i>
         Turnos QR
       </button>
       <button class="tab-btn" data-tab="menu" id="tabBtnMenu">
@@ -127,18 +122,70 @@
       </button>
     </nav>
 
-    <!-- TAB 1: TURNOS QR -->
     <section id="tab-turnos" class="tab-panel">
       <div id="turnosDisabledMsg" class="card empty-state hidden">
         Tu paquete actual no incluye el módulo de Turnos QR.
       </div>
       <div id="turnosModuleContent">
-        <!-- Servicios de turnos -->
+        <div class="queue-board mb-3">
+          <div class="flex-between flex-wrap gap-2 mb-3">
+            <div>
+              <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.06em;">
+                Turnero en Vivo
+              </span>
+              <h2 style="font-size:1.12rem;color:#ffffff;">Control de Números</h2>
+            </div>
+            <button id="resetQueueBtn" class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#e2e8f0;border:1px solid rgba(148,163,184,0.3);">
+              <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i>
+              Reiniciar fila
+            </button>
+          </div>
+
+          <div class="grid-3 mb-3" style="gap:10px;">
+            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
+              <div class="text-xs" style="color:#94a3b8;">Atendiendo ahora</div>
+              <div id="queueCurrentNum" style="font-size:1.65rem;font-weight:800;color:var(--turquoise-bright);">#0</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
+              <div class="text-xs" style="color:#94a3b8;">Último entregado</div>
+              <div id="queueLastNum" style="font-size:1.65rem;font-weight:800;color:#ffffff;">#0</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
+              <div class="text-xs" style="color:#94a3b8;">En espera</div>
+              <div id="queueWaitingCount" style="font-size:1.65rem;font-weight:800;color:#c4b5fd;">0</div>
+            </div>
+          </div>
+
+          <div class="flex-between flex-wrap gap-2" style="background:rgba(124,58,237,0.18);border:1px solid rgba(139,92,246,0.38);border-radius:14px;padding:12px;">
+            <div>
+              <div class="text-xs" style="color:#ddd6fe;">Próximo número a llamar:</div>
+              <strong id="queueNextLabel" style="color:#ffffff;font-size:0.98rem;">Sin turnos en espera</strong>
+            </div>
+            <button id="nextTurnBtn" class="btn btn-electric">
+              Siguiente número
+              <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="nextTurnWaBanner" class="card mb-3 hidden" style="border-color:rgba(22,163,74,0.45);background:rgba(220,252,231,0.92);">
+          <div class="flex-between flex-wrap gap-2">
+            <div>
+              <strong style="color:#14532d;" id="nextTurnWaText">Turno llamado</strong>
+              <div class="text-xs" style="color:#166534;">Toca para enviar la notificación por WhatsApp al cliente.</div>
+            </div>
+            <a id="nextTurnWaLink" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
+              <i data-lucide="message-circle" style="width:15px;height:15px;"></i>
+              Avisar por WhatsApp
+            </a>
+          </div>
+        </div>
+
         <div class="card mb-3">
           <div class="flex-between flex-wrap gap-2 mb-2">
             <div>
               <h2 style="font-size:1.08rem;color:var(--dark);">Servicios para Turnos</h2>
-              <p class="text-xs text-muted">Configura qué servicios pueden reservar tus clientes.</p>
+              <p class="text-xs text-muted">Configura qué servicios pueden elegir al sacar número.</p>
             </div>
             <button id="newServiceBtn" class="btn btn-primary btn-sm">
               <i data-lucide="plus" style="width:15px;height:15px;"></i>
@@ -148,18 +195,17 @@
           <div id="servicesList" class="grid-2"></div>
         </div>
 
-        <!-- Turnos solicitados -->
         <div class="card">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
-              <h2 style="font-size:1.08rem;color:var(--dark);">Turnos Solicitados</h2>
-              <p class="text-xs text-muted">Administra solicitudes y confirma por WhatsApp.</p>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Lista de Turnos</h2>
+              <p class="text-xs text-muted">Se actualiza automáticamente cuando alguien saca un número.</p>
             </div>
             <div class="flex gap-2">
               <select id="appointmentStatusFilter" class="select" style="max-width:160px;">
                 <option value="all">Todos</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="confirmado">Confirmados</option>
+                <option value="pendiente">En espera</option>
+                <option value="confirmado">Llamado / Actual</option>
                 <option value="atendido">Atendidos</option>
                 <option value="cancelado">Cancelados</option>
               </select>
@@ -173,36 +219,53 @@
       </div>
     </section>
 
-    <!-- TAB 2: MENÚ Y PEDIDOS -->
     <section id="tab-menu" class="tab-panel hidden">
       <div id="menuDisabledMsg" class="card empty-state hidden">
         Tu paquete actual no incluye el módulo de Menú y Catálogos QR.
       </div>
       <div id="menuModuleContent">
-        <!-- Pedidos recibidos -->
+        <div id="newOrderAlertBanner" class="card mb-3 hidden" style="border-color:rgba(22,163,74,0.5);background:rgba(220,252,231,0.95);">
+          <div class="flex-between flex-wrap gap-2">
+            <div>
+              <strong style="color:#14532d;" id="newOrderAlertText">🔔 ¡Nuevo pedido recibido!</strong>
+              <div class="text-xs" style="color:#166534;">Puedes confirmar el pedido al cliente por WhatsApp ahora.</div>
+            </div>
+            <div class="flex gap-1">
+              <a id="newOrderAlertWaLink" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
+                <i data-lucide="message-circle" style="width:14px;height:14px;"></i>
+                Avisar por WhatsApp
+              </a>
+              <button id="dismissOrderAlertBtn" type="button" class="btn btn-outline btn-sm">✕</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card mb-3">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
               <h2 style="font-size:1.08rem;color:var(--dark);">Pedidos Recibidos</h2>
               <p class="text-xs text-muted">Actualiza el estado y avisa por WhatsApp cuando esté listo.</p>
             </div>
-            <div class="flex gap-2">
-              <select id="orderStatusFilter" class="select" style="max-width:160px;">
+            <div class="flex flex-wrap gap-1">
+              <select id="orderStatusFilter" class="select" style="width:auto;max-width:150px;">
                 <option value="all">Todos</option>
                 <option value="pendiente">Pendientes</option>
                 <option value="preparando">Preparando</option>
                 <option value="listo">Listos</option>
                 <option value="entregado">Entregados</option>
               </select>
-              <button id="refreshOrdersBtn" class="btn btn-outline btn-sm">
+              <button id="refreshOrdersBtn" class="btn btn-outline btn-sm" title="Actualizar">
                 <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+              </button>
+              <button id="clearOrdersHistoryBtn" class="btn btn-danger btn-sm">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                Eliminar historial
               </button>
             </div>
           </div>
           <div id="ordersList" class="grid"></div>
         </div>
 
-        <!-- Categorías -->
         <div class="card mb-3">
           <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:8px;">Categorías del Catálogo</h2>
           <form id="categoryForm" class="flex gap-2 mb-2" style="flex-wrap:wrap;">
@@ -212,7 +275,6 @@
           <div id="categoriesList" class="flex flex-wrap gap-1"></div>
         </div>
 
-        <!-- Productos -->
         <div class="card">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
@@ -224,18 +286,16 @@
               Nuevo Producto
             </button>
           </div>
-          <div id="productsList" class="grid-3"></div>
+          <div id="productsList" class="grid-2"></div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 3: CÓDIGOS QR Y ENLACES -->
     <section id="tab-qr" class="tab-panel hidden">
       <div class="grid-2">
-        <!-- QR Turnos -->
         <div class="card text-center" id="qrTurnosCard">
           <h2 style="font-size:1.1rem;color:var(--dark);">QR de Turnos</h2>
-          <p class="text-xs text-muted mb-3">Escaneando este código, tus clientes solicitan turno.</p>
+          <p class="text-xs text-muted mb-3">Escaneando este código, tus clientes sacan número y ven cuánto falta.</p>
           <div class="qr-box">
             <div id="qrTurnosCanvas"></div>
           </div>
@@ -250,7 +310,6 @@
           </div>
         </div>
 
-        <!-- QR Menú -->
         <div class="card text-center" id="qrMenuCard">
           <h2 style="font-size:1.1rem;color:var(--dark);">QR de Menú y Catálogo</h2>
           <p class="text-xs text-muted mb-3">Escaneando este código, ven tu catálogo y hacen pedidos.</p>
@@ -270,7 +329,6 @@
       </div>
     </section>
 
-    <!-- TAB 4: PERSONALIZACIÓN -->
     <section id="tab-settings" class="tab-panel hidden">
       <form id="settingsForm" class="card container-sm" style="margin:0;">
         <h2 style="font-size:1.1rem;color:var(--dark);margin-bottom:12px;">Apariencia y WhatsApp</h2>
@@ -284,11 +342,11 @@
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Color principal del catálogo</label>
-            <input type="color" id="settingPrimaryColor" class="input" style="padding:4px;height:46px;" value="#4f46e5" />
+            <input type="color" id="settingPrimaryColor" class="input" style="padding:4px;height:46px;" value="#7c3aed" />
           </div>
           <div class="form-group">
             <label class="form-label">Color de acento / botones</label>
-            <input type="color" id="settingAccentColor" class="input" style="padding:4px;height:46px;" value="#0f172a" />
+            <input type="color" id="settingAccentColor" class="input" style="padding:4px;height:46px;" value="#07192b" />
           </div>
         </div>
 
@@ -304,7 +362,6 @@
     </section>
   </main>
 
-  <!-- Modal Servicio de Turnos -->
   <div id="serviceModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-3">
@@ -315,12 +372,12 @@
         <input type="hidden" id="serviceId" />
         <div class="form-group">
           <label class="form-label">Nombre del servicio *</label>
-          <input type="text" id="serviceName" class="input" placeholder="Ej: Corte de cabello" required />
+          <input type="text" id="serviceName" class="input" placeholder="Ej: Atención general" required />
         </div>
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Duración estimada (min)</label>
-            <input type="number" id="serviceDuration" class="input" min="5" value="30" required />
+            <input type="number" id="serviceDuration" class="input" min="5" value="15" required />
           </div>
           <div class="form-group">
             <label class="form-label">Precio ($)</label>
@@ -339,7 +396,6 @@
     </div>
   </div>
 
-  <!-- Modal Producto -->
   <div id="productModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-3">
@@ -371,7 +427,7 @@
           <input type="file" id="productImageFile" class="input" accept="image/*" />
           <span class="text-xs text-muted">O pega una URL de imagen abajo:</span>
           <input type="url" id="productImageUrl" class="input mt-1" placeholder="https://..." />
-          <img id="productImagePreview" class="mt-2 hidden" style="max-height:130px;border-radius:10px;" alt="Vista previa" />
+          <img id="productImagePreview" class="mt-2 hidden" style="max-height:110px;border-radius:10px;" alt="Vista previa" />
         </div>
         <label class="checkbox-row">
           <input type="checkbox" id="productActive" checked />
@@ -387,4 +443,4 @@
 
   <script type="module" src="js/panel.js"></script>
 </body>
-              </html>
+          </html>
