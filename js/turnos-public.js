@@ -255,14 +255,6 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
       waBtn.classList.add("hidden");
     }
 
-    const menuBtn = document.getElementById("goToBizMenuBtn");
-    if (currentBiz.limits?.includesMenu) {
-      menuBtn.href = `menu.html?id=${encodeURIComponent(businessId)}`;
-      menuBtn.classList.remove("hidden");
-    } else {
-      menuBtn.classList.add("hidden");
-    }
-
     successViewEl.classList.remove("hidden");
     showToast("¡Turno solicitado con éxito!", "success");
     lucide.createIcons();
@@ -287,12 +279,4 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
 
 document.getElementById("bookAnotherBtn").addEventListener("click", () => {
   window.location.reload();
-});
-
-document.getElementById("backTurnosBtn").addEventListener("click", () => {
-  if (window.history.length > 1) {
-    window.history.back();
-  } else {
-    window.location.reload();
-  }
 });
