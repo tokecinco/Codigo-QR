@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administrador General — Toke QR</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-icon"><i data-lucide="shield-check"></i></span>
+        <span>Toke QR <span class="text-xs text-muted" style="font-weight:600;">Admin</span></span>
+      </a>
+      <div class="flex gap-2">
+        <span id="adminEmailLabel" class="text-xs text-muted hidden"></span>
+        <button id="logoutBtn" class="btn btn-outline btn-sm hidden">
+          <i data-lucide="log-out" style="width:15px;height:15px;"></i>
+          Salir
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Pantalla de Login -->
+  <main id="adminLoginView" class="container-sm" style="padding-top:42px;">
+    <div class="card">
+      <div class="text-center mb-3">
+        <div class="brand-icon" style="margin:0 auto 12px;width:48px;height:48px;">
+          <i data-lucide="lock"></i>
+        </div>
+        <h1 style="font-size:1.35rem;color:var(--dark);">Panel Administrador</h1>
+        <p class="text-sm text-muted mt-1">Inicia sesión con tu cuenta de administrador general.</p>
+      </div>
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Correo electrónico</label>
+          <input type="email" id="loginEmail" class="input" placeholder="admin@ejemplo.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Contraseña</label>
+          <input type="password" id="loginPassword" class="input" placeholder="••••••••" required />
+        </div>
+        <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-block mt-2">
+          Ingresar al Panel
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Panel Principal Administrador -->
+  <main id="adminDashboardView" class="container hidden">
+    <!-- Estadísticas -->
+    <section class="grid-4 mb-3">
+      <div class="stat-card">
+        <div class="stat-label">Negocios activos</div>
+        <div class="stat-value" id="statActiveBusinesses">0</div>
+        <div class="text-xs text-muted" id="statTotalBusinesses">de 0 registrados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Por vencer / Vencidos</div>
+        <div class="stat-value" id="statExpiring" style="color:var(--warning);">0</div>
+        <div class="text-xs text-muted">requieren atención</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Turnos totales</div>
+        <div class="stat-value" id="statTotalAppointments">0</div>
+        <div class="text-xs text-muted">en toda la plataforma</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pedidos / Ingresos</div>
+        <div class="stat-value" id="statTotalOrders">0</div>
+        <div class="text-xs text-muted" id="statTotalRevenue">$0 recaudados</div>
+      </div>
+    </section>
+
+    <!-- Pestañas -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="businesses">
+        <i data-lucide="store" style="width:16px;height:16px;"></i>
+        Negocios
+      </button>
+      <button class="tab-btn" data-tab="packages">
+        <i data-lucide="layers" style="width:16px;height:16px;"></i>
+        Paquetes
+      </button>
+      <button class="tab-btn" data-tab="expirations">
+        <i data-lucide="calendar-alert" style="width:16px;height:16px;"></i>
+        Vencimientos y Pagos
+      </button>
+      <button class="tab-btn" data-tab="activity">
+        <i data-lucide="activity" style="width:16px;height:16px;"></i>
+        Turnos y Pedidos
+      </button>
+    </nav>
+
+    <!-- TAB 1: Negocios -->
+    <section id="tab-businesses" class="tab-panel">
+      <div class="card mb-3">
+        <div class="flex-between flex-wrap gap-2">
+          <div class="flex gap-2 flex-wrap" style="flex:1;">
+            <input type="text" id="bizSearchInput" class="input" placeholder="Buscar negocio o rubro..." style="max-width:260px;" />
+            <select id="bizFilterSelect" class="select" style="max-width:190px;">
+              <option value="all">Todos los estados</option>
+              <option value="active">Activos</option>
+              <option value="expiring">Por vencer (≤ 2 días)</option>
+              <option value="expired">Vencidos</option>
+              <option value="suspended">Suspendidos</option>
+            </select>
+          </div>
+          <button id="newBusinessBtn" class="btn btn-primary">
+            <i data-lucide="plus" style="width:16px;height:16px;"></i>
+            Nuevo Negocio
+          </button>
+        </div>
+      </div>
+      <div id="businessesList" class="grid-2"></div>
+    </section>
+
+    <!-- TAB 2: Paquetes -->
+    <section id="tab-packages" class="tab-panel hidden">
+      <div class="grid-2" id="packagesContainer">
+        <!-- Se llena dinámicamente con Básico y Premium -->
+      </div>
+    </section>
+
+    <!-- TAB 3: Vencimientos y Pagos -->
+    <section id="tab-expirations" class="tab-panel hidden">
+      <div class="card mb-3">
+        <h2 style="font-size:1.1rem;color:var(--dark);">Control de Vencimientos y Suscripciones</h2>
+        <p class="text-sm text-muted">Negocios ordenados por fecha de vencimiento más próxima.</p>
+      </div>
+      <div id="expirationsList" class="grid"></div>
+    </section>
+
+    <!-- TAB 4: Turnos y Pedidos Globales -->
+    <section id="tab-activity" class="tab-panel hidden">
+      <div class="card mb-3">
+        <div class="flex-between flex-wrap gap-2">
+          <div>
+            <h2 style="font-size:1.1rem;color:var(--dark);">Turnos y Pedidos de la Plataforma</h2>
+            <p class="text-sm text-muted">Supervisión en tiempo real de todos los clientes.</p>
+          </div>
+          <div class="flex gap-2">
+            <select id="activityTypeFilter" class="select" style="max-width:170px;">
+              <option value="all">Turnos y Pedidos</option>
+              <option value="appointments">Solo Turnos</option>
+              <option value="orders">Solo Pedidos</option>
+            </select>
+            <button id="refreshActivityBtn" class="btn btn-outline btn-sm">
+              <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+              Actualizar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="globalActivityList" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Modal Crear / Editar Negocio -->
+  <div id="businessModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 id="businessModalTitle" style="font-size:1.2rem;color:var(--dark);">Nuevo Negocio</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeBusinessModal">✕</button>
+      </div>
+      <form id="businessForm">
+        <input type="hidden" id="bizId" />
+        <input type="hidden" id="bizOldCode" />
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Nombre del negocio *</label>
+            <input type="text" id="bizName" class="input" placeholder="Ej: Barbería Central" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rubro / Categoría</label>
+            <input type="text" id="bizCategory" class="input" placeholder="Ej: Barbería, Restaurante" />
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">WhatsApp del negocio *</label>
+            <input type="tel" id="bizWhatsapp" class="input" placeholder="Ej: 5491122334455" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código único de acceso *</label>
+            <div class="flex gap-1">
+              <input type="text" id="bizCode" class="input" style="text-transform:uppercase;" required />
+              <button type="button" id="regenCodeBtn" class="btn btn-secondary btn-sm" title="Generar código">
+                <i data-lucide="shuffle" style="width:15px;height:15px;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Paquete asignado</label>
+            <select id="bizPackage" class="select">
+              <option value="basic">Paquete Básico</option>
+              <option value="premium">Paquete Premium</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Precio semanal ($)</label>
+            <input type="number" id="bizWeeklyPrice" class="input" min="0" step="any" required />
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="form-group">
+            <label class="form-label">Máx. Turnos</label>
+            <input type="number" id="bizMaxAppointments" class="input" min="0" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Máx. Productos</label>
+            <input type="number" id="bizMaxProducts" class="input" min="0" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duración (días)</label>
+            <input type="number" id="bizDurationDays" class="input" min="1" value="7" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Servicios habilitados</label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="bizIncludesTurnos" checked />
+            Incluir Turnos QR
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="bizIncludesMenu" checked />
+            Incluir Menú y Catálogo QR
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="bizAllowOrders" checked />
+            Permitir pedidos por QR en Menú (bares / restaurantes)
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="bizActive" checked />
+            Servicio activo
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Pago registrado ($)</label>
+            <input type="number" id="bizPaymentAmount" class="input" min="0" step="any" value="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notas internas / pago</label>
+            <input type="text" id="bizNotes" class="input" placeholder="Ej: Pagó por transferencia" />
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-3">
+          <button type="button" id="cancelBusinessModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
+          <button type="submit" id="saveBusinessBtn" class="btn btn-primary" style="flex:2;">Guardar Negocio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Renovar Suscripción -->
+  <div id="renewModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 style="font-size:1.2rem;color:var(--dark);">Renovar Suscripción</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeRenewModal">✕</button>
+      </div>
+      <form id="renewForm">
+        <input type="hidden" id="renewBizId" />
+        <p class="text-sm text-muted mb-3">Negocio: <strong id="renewBizName" style="color:var(--dark);"></strong></p>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Días a sumar</label>
+            <input type="number" id="renewDays" class="input" min="1" value="7" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monto pagado ($)</label>
+            <input type="number" id="renewAmount" class="input" min="0" step="any" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notas del pago</label>
+          <input type="text" id="renewNotes" class="input" placeholder="Ej: Renovación semanal" />
+        </div>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="renewResetAppointments" checked />
+          Reiniciar contador de turnos usados de la semana a 0
+        </label>
+
+        <div class="flex gap-2 mt-3">
+          <button type="button" id="cancelRenewModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
+          <button type="submit" class="btn btn-success" style="flex:2;">Confirmar Renovación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+  </html>
