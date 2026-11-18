@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solicitar Turno — Toke QR</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-inner">
+      <div class="brand">
+        <span class="brand-icon" id="bizBrandIcon"><i data-lucide="calendar-clock"></i></span>
+        <div>
+          <div id="bizNameHeader" style="line-height:1.15;">Cargando...</div>
+          <div id="bizCategoryHeader" class="text-xs text-muted" style="font-weight:500;">Turnos QR</div>
+        </div>
+      </div>
+      <a id="bizContactWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm hidden">
+        <i data-lucide="message-circle" style="width:15px;height:15px;"></i>
+        WhatsApp
+      </a>
+    </div>
+  </header>
+
+  <main class="container-sm" style="padding-top:20px;padding-bottom:40px;">
+    <!-- Estado de carga -->
+    <div id="turnosLoading" class="card text-center">
+      <p class="text-muted">Cargando servicios disponibles...</p>
+    </div>
+
+    <!-- Estado no disponible / vencido / límite alcanzado -->
+    <div id="turnosUnavailable" class="card text-center hidden">
+      <div class="brand-icon" style="margin:0 auto 12px;background:var(--danger-soft);color:var(--danger);">
+        <i data-lucide="calendar-x"></i>
+      </div>
+      <h1 id="unavailableTitle" style="font-size:1.2rem;color:var(--dark);">Servicio no disponible</h1>
+      <p id="unavailableMsg" class="text-sm text-muted mt-1 mb-3">
+        En este momento no es posible solicitar turnos.
+      </p>
+      <a id="unavailableWaBtn" href="#" target="_blank" class="btn btn-whatsapp hidden">
+        <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
+        Contactar al negocio por WhatsApp
+      </a>
+    </div>
+
+    <!-- Formulario de solicitud de turno -->
+    <div id="turnosFormView" class="hidden">
+      <div class="card mb-3">
+        <h1 style="font-size:1.2rem;color:var(--dark);margin-bottom:4px;">Solicitar un turno</h1>
+        <p class="text-sm text-muted">Elige un servicio, completa tus datos y confirma.</p>
+      </div>
+
+      <form id="bookAppointmentForm" class="card">
+        <div class="form-group">
+          <label class="form-label">1. Elige el servicio *</label>
+          <div id="servicesOptionsList" class="grid" style="gap:10px;"></div>
+          <input type="hidden" id="selectedServiceId" required />
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label" for="appDate">2. Fecha *</label>
+            <input type="date" id="appDate" class="input" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="appTime">Hora preferida *</label>
+            <input type="time" id="appTime" class="input" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="customerName">3. Tu nombre completo *</label>
+          <input type="text" id="customerName" class="input" placeholder="Ej: Juan Pérez" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="customerPhone">4. Tu número de WhatsApp *</label>
+          <input type="tel" id="customerPhone" class="input" placeholder="Ej: 5491122334455" required />
+          <span class="text-xs text-muted">Lo usaremos para confirmar tu turno por WhatsApp.</span>
+        </div>
+
+        <button type="submit" id="submitAppointmentBtn" class="btn btn-primary btn-block mt-2">
+          Confirmar solicitud de turno
+        </button>
+      </form>
+    </div>
+
+    <!-- Confirmación exitosa -->
+    <div id="turnosSuccessView" class="card text-center hidden">
+      <div class="brand-icon" style="margin:0 auto 14px;width:54px;height:54px;background:var(--success-soft);color:var(--success);">
+        <i data-lucide="check-circle-2"></i>
+      </div>
+      <h2 style="font-size:1.3rem;color:var(--dark);">¡Turno solicitado!</h2>
+      <p class="text-sm text-muted mt-1 mb-3">
+        Tu solicitud quedó registrada como <strong>pendiente</strong>. El negocio te confirmará por WhatsApp.
+      </p>
+
+      <div class="card card-compact text-sm mb-3" style="background:var(--bg);text-align:left;" id="successSummary"></div>
+
+      <div class="grid" style="gap:10px;">
+        <a id="successWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-block">
+          <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
+          Enviar comprobante al negocio por WhatsApp
+        </a>
+        <button id="bookAnotherBtn" type="button" class="btn btn-outline btn-block">
+          Solicitar otro turno
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center text-xs text-muted" style="padding:16px;">
+    Servicio impulsado por <strong>Toke QR</strong>
+  </footer>
+
+  <script type="module" src="js/turnos-public.js"></script>
+</body>
+  </html>
