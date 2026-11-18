@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toke QR — Servicios QR para Negocios</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-icon"><i data-lucide="qr-code"></i></span>
+        <span>Toke QR</span>
+      </a>
+      <div class="flex gap-1">
+        <a href="panel.html" class="btn btn-secondary btn-sm">Mi Negocio</a>
+        <a href="admin.html" class="btn btn-outline btn-sm">Admin</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-badge">
+        <i data-lucide="sparkles" style="width:14px;height:14px;"></i>
+        Plataforma QR para Comercios
+      </div>
+      <h1>Turnos y Menús QR en segundos, sin complicaciones</h1>
+      <p>
+        Digitaliza la atención de tu negocio con códigos QR listos para imprimir,
+        gestión simple y avisos directos por WhatsApp.
+      </p>
+    </section>
+
+    <!-- Acceso rápido con código -->
+    <section class="container-sm" style="padding-left:0;padding-right:0;">
+      <div class="card">
+        <div class="flex-between mb-2">
+          <div>
+            <h2 style="font-size:1.1rem;color:var(--dark);">Acceso para Negocios</h2>
+            <p class="text-sm text-muted">Ingresa con tu código único, sin correo ni registro.</p>
+          </div>
+          <i data-lucide="key-round" style="color:var(--primary);"></i>
+        </div>
+        <form id="quickAccessForm" class="flex gap-2" style="flex-wrap:wrap;">
+          <input
+            type="text"
+            id="quickCodeInput"
+            class="input"
+            placeholder="Ej: TOKE-XXXX"
+            style="flex:1;min-width:180px;text-transform:uppercase;"
+            required
+          />
+          <button type="submit" class="btn btn-primary">
+            Entrar al Panel
+            <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Servicios -->
+    <section class="grid-2 mt-4">
+      <div class="card">
+        <div class="brand-icon mb-2" style="background:var(--primary-soft);color:var(--primary);">
+          <i data-lucide="calendar-clock"></i>
+        </div>
+        <h3 style="font-size:1.15rem;color:var(--dark);margin-bottom:6px;">Turnos QR</h3>
+        <p class="text-sm text-muted">
+          Tus clientes escanean el QR, eligen el servicio, dejan su nombre y WhatsApp,
+          y tú administras cada turno desde tu panel con aviso directo por WhatsApp.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="brand-icon mb-2" style="background:var(--success-soft);color:var(--success);">
+          <i data-lucide="utensils"></i>
+        </div>
+        <h3 style="font-size:1.15rem;color:var(--dark);margin-bottom:6px;">Menú y Catálogos QR</h3>
+        <p class="text-sm text-muted">
+          Muestra productos con fotos, precios y categorías personalizadas. Ideal para
+          bares, restaurantes y tiendas que reciben pedidos por QR y avisan cuando están listos.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="text-center text-xs text-muted mt-4" style="padding:24px 16px;">
+    © <span id="year"></span> Toke QR — Plataforma Comercial de Servicios QR
+  </footer>
+
+  <script>
+    lucide.createIcons();
+    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById('quickAccessForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code = document.getElementById('quickCodeInput').value.trim().toUpperCase();
+      if (code) {
+        window.location.href = `panel.html?code=${encodeURIComponent(code)}`;
+      }
+    });
+  </script>
+</body>
+</html>
