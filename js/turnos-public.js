@@ -35,7 +35,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // Fecha de hoy por defecto
   const today = new Date().toISOString().split("T")[0];
   document.getElementById("appDate").value = today;
   document.getElementById("appDate").min = today;
@@ -237,7 +236,6 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
       });
     });
 
-    // Mostrar confirmación
     formViewEl.classList.add("hidden");
     document.getElementById("successSummary").innerHTML = `
       <div><strong>Negocio:</strong> ${escapeHtml(currentBiz.name)}</div>
@@ -256,6 +254,7 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
     } else {
       waBtn.classList.add("hidden");
     }
+
     const menuBtn = document.getElementById("goToBizMenuBtn");
     if (currentBiz.limits?.includesMenu) {
       menuBtn.href = `menu.html?id=${encodeURIComponent(businessId)}`;
@@ -288,4 +287,12 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
 
 document.getElementById("bookAnotherBtn").addEventListener("click", () => {
   window.location.reload();
+});
+
+document.getElementById("backTurnosBtn").addEventListener("click", () => {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.reload();
+  }
 });
