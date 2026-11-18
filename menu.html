@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Menú y Catálogo — Toke QR</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body style="padding-bottom:92px;">
+  <header class="navbar">
+    <div class="navbar-inner">
+      <div class="brand">
+        <span class="brand-icon" id="menuBrandIcon"><i data-lucide="utensils"></i></span>
+        <div>
+          <div id="menuBizName" style="line-height:1.15;">Cargando...</div>
+          <div id="menuBizCategory" class="text-xs text-muted" style="font-weight:500;">Menú QR</div>
+        </div>
+      </div>
+      <a id="menuWaContactBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm hidden">
+        <i data-lucide="message-circle" style="width:15px;height:15px;"></i>
+        WhatsApp
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Cargando -->
+    <div id="menuLoading" class="card text-center">
+      <p class="text-muted">Cargando catálogo...</p>
+    </div>
+
+    <!-- No disponible -->
+    <div id="menuUnavailable" class="card container-sm text-center hidden">
+      <div class="brand-icon" style="margin:0 auto 12px;background:var(--danger-soft);color:var(--danger);">
+        <i data-lucide="store"></i>
+      </div>
+      <h1 id="menuUnavailableTitle" style="font-size:1.2rem;color:var(--dark);">Catálogo no disponible</h1>
+      <p id="menuUnavailableMsg" class="text-sm text-muted mt-1 mb-3">
+        Este menú no se encuentra activo en este momento.
+      </p>
+      <a id="menuUnavailableWaBtn" href="#" target="_blank" class="btn btn-whatsapp hidden">
+        <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
+        Contactar por WhatsApp
+      </a>
+    </div>
+
+    <!-- Catálogo -->
+    <div id="menuCatalogView" class="hidden">
+      <!-- Buscador y Categorías -->
+      <div class="mb-3">
+        <input
+          type="text"
+          id="menuSearchInput"
+          class="input mb-2"
+          placeholder="Buscar producto..."
+          style="max-width:420px;"
+        />
+        <div id="menuCategoriesTabs" class="tabs" style="margin-bottom:0;"></div>
+      </div>
+
+      <!-- Productos -->
+      <div id="menuProductsGrid" class="grid-3"></div>
+    </div>
+
+    <!-- Confirmación de pedido exitoso -->
+    <div id="orderSuccessView" class="card container-sm text-center hidden">
+      <div class="brand-icon" style="margin:0 auto 14px;width:54px;height:54px;background:var(--success-soft);color:var(--success);">
+        <i data-lucide="check-circle-2"></i>
+      </div>
+      <h2 style="font-size:1.3rem;color:var(--dark);">¡Pedido enviado!</h2>
+      <p class="text-sm text-muted mt-1 mb-3">
+        El negocio recibió tu pedido. Cuando esté listo te avisarán por WhatsApp.
+      </p>
+      <div id="orderSuccessSummary" class="card card-compact text-sm mb-3" style="background:var(--bg);text-align:left;"></div>
+      <div class="grid" style="gap:10px;">
+        <a id="orderSuccessWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-block">
+          <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
+          Enviar pedido por WhatsApp también
+        </a>
+        <button id="newOrderBtn" type="button" class="btn btn-outline btn-block">
+          Volver al menú
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Barra flotante de carrito -->
+  <div id="cartBar" class="cart-bar hidden">
+    <div>
+      <div class="text-xs" style="opacity:0.8;" id="cartItemsCount">0 productos</div>
+      <div class="font-bold" style="font-size:1.08rem;" id="cartTotalText">$0</div>
+    </div>
+    <button id="openCartModalBtn" type="button" class="btn btn-primary btn-sm">
+      Ver Pedido
+      <i data-lucide="shopping-bag" style="width:16px;height:16px;"></i>
+    </button>
+  </div>
+
+  <!-- Modal Confirmar Pedido -->
+  <div id="cartModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 style="font-size:1.2rem;color:var(--dark);">Tu Pedido</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeCartModal">✕</button>
+      </div>
+
+      <div id="cartModalItems" class="grid mb-3" style="gap:10px;"></div>
+
+      <div class="flex-between mb-3" style="padding:10px 12px;background:var(--bg);border-radius:10px;">
+        <strong>Total a pagar</strong>
+        <strong id="cartModalTotal" style="font-size:1.15rem;color:var(--primary);">$0</strong>
+      </div>
+
+      <form id="checkoutOrderForm">
+        <div class="form-group">
+          <label class="form-label" for="orderCustomerName">Tu nombre *</label>
+          <input type="text" id="orderCustomerName" class="input" placeholder="Ej: María Gómez" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="orderCustomerPhone">Tu número de WhatsApp *</label>
+          <input type="tel" id="orderCustomerPhone" class="input" placeholder="Ej: 5491122334455" required />
+          <span class="text-xs text-muted">Para avisarte cuando tu pedido esté listo.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="orderNotes">Notas / Mesa / Aclaraciones (opcional)</label>
+          <textarea id="orderNotes" class="textarea" style="min-height:64px;" placeholder="Ej: Mesa 4, sin cebolla..."></textarea>
+        </div>
+
+        <button type="submit" id="submitOrderBtn" class="btn btn-primary btn-block">
+          Enviar Pedido
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/menu-public.js"></script>
+</body>
+  </html>
