@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Negocio — Toke QR</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    .qr-box img { max-width: 210px; height: auto; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-icon"><i data-lucide="qr-code"></i></span>
+        <span id="navBizName">Toke QR</span>
+      </a>
+      <button id="panelLogoutBtn" class="btn btn-outline btn-sm hidden">
+        <i data-lucide="log-out" style="width:15px;height:15px;"></i>
+        Salir
+      </button>
+    </div>
+  </header>
+
+  <!-- Pantalla de ingreso por código único -->
+  <main id="panelLoginView" class="container-sm" style="padding-top:42px;">
+    <div class="card">
+      <div class="text-center mb-3">
+        <div class="brand-icon" style="margin:0 auto 12px;width:48px;height:48px;">
+          <i data-lucide="key-round"></i>
+        </div>
+        <h1 style="font-size:1.35rem;color:var(--dark);">Acceso a mi Negocio</h1>
+        <p class="text-sm text-muted mt-1">
+          Ingresa tu código único de acceso. No necesitas correo ni contraseña.
+        </p>
+      </div>
+      <form id="panelLoginForm">
+        <div class="form-group">
+          <label class="form-label" for="accessCodeInput">Código único de acceso</label>
+          <input
+            type="text"
+            id="accessCodeInput"
+            class="input"
+            placeholder="Ej: TOKE-XXXX-XXXX"
+            style="text-transform:uppercase;text-align:center;font-weight:700;letter-spacing:0.06em;"
+            required
+          />
+        </div>
+        <button type="submit" id="panelLoginBtn" class="btn btn-primary btn-block">
+          Ingresar al Panel
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Dashboard Privado del Negocio -->
+  <main id="panelDashboardView" class="container hidden">
+    <!-- Alerta de servicio suspendido o vencido -->
+    <div id="expiredAlert" class="card mb-3 hidden" style="border-color:#fecaca;background:var(--danger-soft);">
+      <div class="flex gap-2">
+        <i data-lucide="alert-triangle" style="color:var(--danger);flex-shrink:0;"></i>
+        <div>
+          <strong style="color:#991b1b;">Servicio pausado o vencido</strong>
+          <p class="text-sm" style="color:#7f1d1d;">
+            Tu suscripción no se encuentra activa en este momento. Comunícate con el administrador para renovar y habilitar las operaciones.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen de Paquete y Límites -->
+    <section class="card mb-3">
+      <div class="flex-between flex-wrap gap-2 mb-2">
+        <div>
+          <div class="flex gap-2 flex-wrap">
+            <h1 id="bizTitle" style="font-size:1.25rem;color:var(--dark);">Mi Negocio</h1>
+            <span id="bizStatusBadge" class="badge badge-active">Activo</span>
+          </div>
+          <p class="text-xs text-muted mt-1">
+            Plan: <strong id="bizPackageLabel">—</strong> · Vence: <strong id="bizExpiresLabel">—</strong>
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-2">
+        <div id="turnosQuotaBox">
+          <div class="flex-between text-xs">
+            <span class="text-muted font-bold">Límite de Turnos</span>
+            <strong id="turnosQuotaText">0 / 0</strong>
+          </div>
+          <div class="progress-bar">
+            <div id="turnosQuotaBar" class="progress-fill" style="width:0%;"></div>
+          </div>
+        </div>
+        <div id="productsQuotaBox">
+          <div class="flex-between text-xs">
+            <span class="text-muted font-bold">Límite de Productos</span>
+            <strong id="productsQuotaText">0 / 0</strong>
+          </div>
+          <div class="progress-bar">
+            <div id="productsQuotaBar" class="progress-fill" style="width:0%;background:var(--success);"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pestañas -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="turnos" id="tabBtnTurnos">
+        <i data-lucide="calendar-clock" style="width:16px;height:16px;"></i>
+        Turnos QR
+      </button>
+      <button class="tab-btn" data-tab="menu" id="tabBtnMenu">
+        <i data-lucide="utensils" style="width:16px;height:16px;"></i>
+        Menú y Pedidos
+      </button>
+      <button class="tab-btn" data-tab="qr" id="tabBtnQr">
+        <i data-lucide="qr-code" style="width:16px;height:16px;"></i>
+        Mis Códigos QR
+      </button>
+      <button class="tab-btn" data-tab="settings" id="tabBtnSettings">
+        <i data-lucide="palette" style="width:16px;height:16px;"></i>
+        Personalizar
+      </button>
+    </nav>
+
+    <!-- TAB 1: TURNOS QR -->
+    <section id="tab-turnos" class="tab-panel">
+      <div id="turnosDisabledMsg" class="card empty-state hidden">
+        Tu paquete actual no incluye el módulo de Turnos QR.
+      </div>
+      <div id="turnosModuleContent">
+        <!-- Servicios de turnos -->
+        <div class="card mb-3">
+          <div class="flex-between flex-wrap gap-2 mb-2">
+            <div>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Servicios para Turnos</h2>
+              <p class="text-xs text-muted">Configura qué servicios pueden reservar tus clientes.</p>
+            </div>
+            <button id="newServiceBtn" class="btn btn-primary btn-sm">
+              <i data-lucide="plus" style="width:15px;height:15px;"></i>
+              Nuevo Servicio
+            </button>
+          </div>
+          <div id="servicesList" class="grid-2"></div>
+        </div>
+
+        <!-- Turnos solicitados -->
+        <div class="card">
+          <div class="flex-between flex-wrap gap-2 mb-3">
+            <div>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Turnos Solicitados</h2>
+              <p class="text-xs text-muted">Administra solicitudes y confirma por WhatsApp.</p>
+            </div>
+            <div class="flex gap-2">
+              <select id="appointmentStatusFilter" class="select" style="max-width:160px;">
+                <option value="all">Todos</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="confirmado">Confirmados</option>
+                <option value="atendido">Atendidos</option>
+                <option value="cancelado">Cancelados</option>
+              </select>
+              <button id="refreshAppointmentsBtn" class="btn btn-outline btn-sm">
+                <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+              </button>
+            </div>
+          </div>
+          <div id="appointmentsList" class="grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: MENÚ Y PEDIDOS -->
+    <section id="tab-menu" class="tab-panel hidden">
+      <div id="menuDisabledMsg" class="card empty-state hidden">
+        Tu paquete actual no incluye el módulo de Menú y Catálogos QR.
+      </div>
+      <div id="menuModuleContent">
+        <!-- Pedidos recibidos -->
+        <div class="card mb-3">
+          <div class="flex-between flex-wrap gap-2 mb-3">
+            <div>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Pedidos Recibidos</h2>
+              <p class="text-xs text-muted">Actualiza el estado y avisa por WhatsApp cuando esté listo.</p>
+            </div>
+            <div class="flex gap-2">
+              <select id="orderStatusFilter" class="select" style="max-width:160px;">
+                <option value="all">Todos</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="preparando">Preparando</option>
+                <option value="listo">Listos</option>
+                <option value="entregado">Entregados</option>
+              </select>
+              <button id="refreshOrdersBtn" class="btn btn-outline btn-sm">
+                <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+              </button>
+            </div>
+          </div>
+          <div id="ordersList" class="grid"></div>
+        </div>
+
+        <!-- Categorías -->
+        <div class="card mb-3">
+          <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:8px;">Categorías del Catálogo</h2>
+          <form id="categoryForm" class="flex gap-2 mb-2" style="flex-wrap:wrap;">
+            <input type="text" id="newCategoryName" class="input" placeholder="Ej: Hamburguesas, Bebidas..." style="flex:1;min-width:180px;" required />
+            <button type="submit" class="btn btn-secondary btn-sm">Agregar Categoría</button>
+          </form>
+          <div id="categoriesList" class="flex flex-wrap gap-1"></div>
+        </div>
+
+        <!-- Productos -->
+        <div class="card">
+          <div class="flex-between flex-wrap gap-2 mb-3">
+            <div>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Productos</h2>
+              <p class="text-xs text-muted" id="productLimitHint">Agrega fotos, precios y activa o desactiva productos.</p>
+            </div>
+            <button id="newProductBtn" class="btn btn-primary btn-sm">
+              <i data-lucide="plus" style="width:15px;height:15px;"></i>
+              Nuevo Producto
+            </button>
+          </div>
+          <div id="productsList" class="grid-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: CÓDIGOS QR Y ENLACES -->
+    <section id="tab-qr" class="tab-panel hidden">
+      <div class="grid-2">
+        <!-- QR Turnos -->
+        <div class="card text-center" id="qrTurnosCard">
+          <h2 style="font-size:1.1rem;color:var(--dark);">QR de Turnos</h2>
+          <p class="text-xs text-muted mb-3">Escaneando este código, tus clientes solicitan turno.</p>
+          <div class="qr-box">
+            <div id="qrTurnosCanvas"></div>
+          </div>
+          <div class="mt-3 text-xs text-muted" id="qrTurnosUrlText" style="word-break:break-all;"></div>
+          <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
+            <button id="copyTurnosLinkBtn" class="btn btn-outline btn-sm">
+              <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
+            </button>
+            <button id="downloadTurnosQrBtn" class="btn btn-primary btn-sm">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar PNG
+            </button>
+          </div>
+        </div>
+
+        <!-- QR Menú -->
+        <div class="card text-center" id="qrMenuCard">
+          <h2 style="font-size:1.1rem;color:var(--dark);">QR de Menú y Catálogo</h2>
+          <p class="text-xs text-muted mb-3">Escaneando este código, ven tu catálogo y hacen pedidos.</p>
+          <div class="qr-box">
+            <div id="qrMenuCanvas"></div>
+          </div>
+          <div class="mt-3 text-xs text-muted" id="qrMenuUrlText" style="word-break:break-all;"></div>
+          <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
+            <button id="copyMenuLinkBtn" class="btn btn-outline btn-sm">
+              <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
+            </button>
+            <button id="downloadMenuQrBtn" class="btn btn-primary btn-sm">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar PNG
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: PERSONALIZACIÓN -->
+    <section id="tab-settings" class="tab-panel hidden">
+      <form id="settingsForm" class="card container-sm" style="margin:0;">
+        <h2 style="font-size:1.1rem;color:var(--dark);margin-bottom:12px;">Apariencia y WhatsApp</h2>
+
+        <div class="form-group">
+          <label class="form-label">Número de WhatsApp del negocio</label>
+          <input type="tel" id="settingWhatsapp" class="input" placeholder="Ej: 5491122334455" required />
+          <span class="text-xs text-muted">Con código de país, sin espacios ni signo +.</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Color principal del catálogo</label>
+            <input type="color" id="settingPrimaryColor" class="input" style="padding:4px;height:46px;" value="#4f46e5" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Color de acento / botones</label>
+            <input type="color" id="settingAccentColor" class="input" style="padding:4px;height:46px;" value="#0f172a" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-row">
+            <input type="checkbox" id="settingAllowOrders" checked />
+            Permitir que los clientes envíen pedidos desde el Menú QR
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block mt-2">Guardar Cambios</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- Modal Servicio de Turnos -->
+  <div id="serviceModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 id="serviceModalTitle" style="font-size:1.15rem;color:var(--dark);">Nuevo Servicio</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeServiceModal">✕</button>
+      </div>
+      <form id="serviceForm">
+        <input type="hidden" id="serviceId" />
+        <div class="form-group">
+          <label class="form-label">Nombre del servicio *</label>
+          <input type="text" id="serviceName" class="input" placeholder="Ej: Corte de cabello" required />
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Duración estimada (min)</label>
+            <input type="number" id="serviceDuration" class="input" min="5" value="30" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Precio ($)</label>
+            <input type="number" id="servicePrice" class="input" min="0" step="any" value="0" required />
+          </div>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="serviceActive" checked />
+          Servicio visible para clientes
+        </label>
+        <div class="flex gap-2 mt-3">
+          <button type="button" id="cancelServiceModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
+          <button type="submit" class="btn btn-primary" style="flex:2;">Guardar Servicio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Producto -->
+  <div id="productModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 id="productModalTitle" style="font-size:1.15rem;color:var(--dark);">Nuevo Producto</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeProductModal">✕</button>
+      </div>
+      <form id="productForm">
+        <input type="hidden" id="productId" />
+        <div class="form-group">
+          <label class="form-label">Nombre del producto *</label>
+          <input type="text" id="productName" class="input" placeholder="Ej: Pizza Muzzarella" required />
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Categoría</label>
+            <select id="productCategory" class="select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Precio ($) *</label>
+            <input type="number" id="productPrice" class="input" min="0" step="any" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descripción</label>
+          <textarea id="productDescription" class="textarea" placeholder="Ingredientes o detalles..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fotografía (subir desde el celular)</label>
+          <input type="file" id="productImageFile" class="input" accept="image/*" />
+          <span class="text-xs text-muted">O pega una URL de imagen abajo:</span>
+          <input type="url" id="productImageUrl" class="input mt-1" placeholder="https://..." />
+          <img id="productImagePreview" class="mt-2 hidden" style="max-height:130px;border-radius:10px;" alt="Vista previa" />
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="productActive" checked />
+          Producto disponible (activo)
+        </label>
+        <div class="flex gap-2 mt-3">
+          <button type="button" id="cancelProductModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
+          <button type="submit" id="saveProductBtn" class="btn btn-primary" style="flex:2;">Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/panel.js"></script>
+</body>
+              </html>
