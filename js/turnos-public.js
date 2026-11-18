@@ -256,6 +256,13 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
     } else {
       waBtn.classList.add("hidden");
     }
+    const menuBtn = document.getElementById("goToBizMenuBtn");
+    if (currentBiz.limits?.includesMenu) {
+      menuBtn.href = `menu.html?id=${encodeURIComponent(businessId)}`;
+      menuBtn.classList.remove("hidden");
+    } else {
+      menuBtn.classList.add("hidden");
+    }
 
     successViewEl.classList.remove("hidden");
     showToast("¡Turno solicitado con éxito!", "success");
