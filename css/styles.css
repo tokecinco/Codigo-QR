@@ -105,6 +105,7 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Tarjetas */
@@ -127,6 +128,7 @@ img {
   border-radius: var(--radius);
   padding: 16px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .stat-label {
@@ -154,30 +156,30 @@ img {
 .grid-2 {
   display: grid;
   gap: 16px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .grid-3 {
   display: grid;
   gap: 16px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .grid-4 {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (min-width: 640px) {
   .container { padding: 24px; }
-  .grid-2 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 900px) {
-  .grid-3 { grid-template-columns: repeat(3, 1fr); }
-  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* Utilidades flex y espacios */
@@ -407,6 +409,7 @@ img {
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .product-img {
