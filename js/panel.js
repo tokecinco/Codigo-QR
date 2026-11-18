@@ -10,6 +10,8 @@ import {
   updateDoc,
   deleteDoc,
   runTransaction,
+  writeBatch,
+  onSnapshot,
   serverTimestamp,
   query,
   orderBy
@@ -20,7 +22,6 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
-  toJsDate,
   daysRemaining,
   isExpired,
   buildWhatsAppUrl,
@@ -40,7 +41,12 @@ let productsState = [];
 let ordersState = [];
 let pendingProductImage = "";
 
-// Vistas principales
+let unsubBiz = null;
+let unsubAppointments = null;
+let unsubOrders = null;
+let firstOrdersLoad = true;
+let knownOrderIds = new Set();
+
 const loginView = document.getElementById("panelLoginView");
 const dashboardView = document.getElementById("panelDashboardView");
 const logoutBtn = document.getElementById("panelLogoutBtn");
@@ -48,7 +54,33 @@ const logoutBtn = document.getElementById("panelLogoutBtn");
 const serviceModal = document.getElementById("serviceModal");
 const productModal = document.getElementById("productModal");
 
-// Inicialización automática por URL (?code=...) o código guardado
+function playAlertBeep() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(784, ctx.currentTime);
+    osc.frequency.setValueAtTime(1046, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // Silencioso si el navegador bloquea audio automático
+  }
+}
+
+function stopLiveListeners() {
+  if (unsubBiz) { unsubBiz(); unsubBiz = null; }
+  if (unsubAppointments) { unsubAppointments(); unsubAppointments = null; }
+  if (unsubOrders) { unsubOrders(); unsubOrders = null; }
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   lucide.createIcons();
   const params = new URLSearchParams(window.location.search);
@@ -62,7 +94,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Formulario de acceso por código
 document.getElementById("panelLoginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const code = document.getElementById("accessCodeInput").value.trim().toUpperCase();
@@ -71,6 +102,7 @@ document.getElementById("panelLoginForm").addEventListener("submit", async (e) =
 });
 
 logoutBtn.addEventListener("click", () => {
+  stopLiveListeners();
   localStorage.removeItem(STORAGE_CODE_KEY);
   currentBusinessId = null;
   currentBiz = null;
@@ -144,25 +176,37 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
   });
 });
 
-// Cargar todo el panel del negocio
 async function loadBusinessDashboard() {
+  stopLiveListeners();
+  firstOrdersLoad = true;
+  knownOrderIds.clear();
+
   const bizSnap = await getDoc(doc(db, "businesses", currentBusinessId));
   if (!bizSnap.exists()) throw new Error("Negocio no encontrado");
   currentBiz = { id: bizSnap.id, ...bizSnap.data() };
 
   renderHeaderAndLimits();
+  renderQueueBoard();
+  renderQrSection();
+  fillSettingsForm();
+
+  unsubBiz = onSnapshot(doc(db, "businesses", currentBusinessId), (snap) => {
+    if (!snap.exists()) return;
+    currentBiz = { id: snap.id, ...snap.data() };
+    renderHeaderAndLimits();
+    renderQueueBoard();
+  });
 
   const promises = [];
   if (currentBiz.limits?.includesTurnos) {
-    promises.push(loadServices(), loadAppointments());
+    promises.push(loadServices());
+    startAppointmentsListener();
   }
   if (currentBiz.limits?.includesMenu) {
-    promises.push(loadCategories(), loadProducts(), loadOrders());
+    promises.push(loadCategories(), loadProducts());
+    startOrdersListener();
   }
   await Promise.all(promises);
-
-  renderQrSection();
-  fillSettingsForm();
   lucide.createIcons();
 }
 
@@ -191,7 +235,6 @@ function renderHeaderAndLimits() {
     expiredAlert.classList.add("hidden");
   }
 
-  // Límites Turnos
   const usedApp = currentBiz.usage?.appointmentsCount || 0;
   const maxApp = currentBiz.limits?.maxAppointments || 0;
   const appPct = maxApp > 0 ? Math.min(100, Math.round((usedApp / maxApp) * 100)) : 100;
@@ -199,7 +242,6 @@ function renderHeaderAndLimits() {
   document.getElementById("turnosQuotaBar").style.width = `${appPct}%`;
   document.getElementById("turnosQuotaBox").classList.toggle("hidden", !currentBiz.limits?.includesTurnos);
 
-  // Límites Productos
   const usedProd = currentBiz.usage?.productsCount || 0;
   const maxProd = currentBiz.limits?.maxProducts || 0;
   const prodPct = maxProd > 0 ? Math.min(100, Math.round((usedProd / maxProd) * 100)) : 100;
@@ -207,7 +249,6 @@ function renderHeaderAndLimits() {
   document.getElementById("productsQuotaBar").style.width = `${prodPct}%`;
   document.getElementById("productsQuotaBox").classList.toggle("hidden", !currentBiz.limits?.includesMenu);
 
-  // Mostrar/ocultar contenido según paquete
   const hasTurnos = Boolean(currentBiz.limits?.includesTurnos);
   const hasMenu = Boolean(currentBiz.limits?.includesMenu);
 
@@ -225,7 +266,7 @@ function renderHeaderAndLimits() {
 }
 
 // ==========================================
-// MÓDULO TURNOS QR
+// MÓDULO TURNOS QR POR NÚMERO
 // ==========================================
 async function loadServices() {
   const snap = await getDocs(collection(db, "businesses", currentBusinessId, "services"));
@@ -236,7 +277,7 @@ async function loadServices() {
 function renderServices() {
   const container = document.getElementById("servicesList");
   if (servicesState.length === 0) {
-    container.innerHTML = `<div class="empty-state text-sm" style="grid-column:1/-1;">Aún no creaste servicios. Agrega uno para que tus clientes reserven turnos.</div>`;
+    container.innerHTML = `<div class="empty-state text-sm" style="grid-column:1/-1;">Aún no creaste servicios. Agrega uno para que tus clientes saquen número.</div>`;
     return;
   }
 
@@ -252,7 +293,7 @@ function renderServices() {
             </span>
           </div>
           <div class="text-xs text-muted mt-1">
-            ${s.duration || 30} min · <strong>${formatCurrency(s.price || 0)}</strong>
+            ${s.duration || 15} min · <strong>${formatCurrency(s.price || 0)}</strong>
           </div>
         </div>
         <div class="flex gap-1">
@@ -284,7 +325,7 @@ function openServiceModal(id) {
   if (!id) {
     document.getElementById("serviceModalTitle").textContent = "Nuevo Servicio";
     document.getElementById("serviceId").value = "";
-    document.getElementById("serviceDuration").value = 30;
+    document.getElementById("serviceDuration").value = 15;
     document.getElementById("servicePrice").value = 0;
     document.getElementById("serviceActive").checked = true;
   } else {
@@ -293,7 +334,7 @@ function openServiceModal(id) {
     document.getElementById("serviceModalTitle").textContent = "Editar Servicio";
     document.getElementById("serviceId").value = s.id;
     document.getElementById("serviceName").value = s.name || "";
-    document.getElementById("serviceDuration").value = s.duration || 30;
+    document.getElementById("serviceDuration").value = s.duration || 15;
     document.getElementById("servicePrice").value = s.price ?? 0;
     document.getElementById("serviceActive").checked = s.active !== false;
   }
@@ -307,7 +348,7 @@ document.getElementById("serviceForm").addEventListener("submit", async (e) => {
   const id = document.getElementById("serviceId").value;
   const payload = {
     name: document.getElementById("serviceName").value.trim(),
-    duration: Number(document.getElementById("serviceDuration").value || 30),
+    duration: Number(document.getElementById("serviceDuration").value || 15),
     price: Number(document.getElementById("servicePrice").value || 0),
     active: document.getElementById("serviceActive").checked
   };
@@ -340,18 +381,135 @@ async function deleteService(id) {
   }
 }
 
-// Turnos solicitados
-async function loadAppointments() {
-  const q = query(collection(db, "businesses", currentBusinessId, "appointments"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  appointmentsState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  renderAppointments();
+function startAppointmentsListener() {
+  const q = query(collection(db, "businesses", currentBusinessId, "appointments"), orderBy("createdAt", "asc"));
+  unsubAppointments = onSnapshot(q, (snap) => {
+    appointmentsState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    appointmentsState.sort((a, b) => (a.ticketNumber || 0) - (b.ticketNumber || 0));
+    renderQueueBoard();
+    renderAppointments();
+  }, (err) => console.error(err));
 }
+
+function getWaitingAppointments() {
+  const currentNum = currentBiz?.queue?.currentNumber || 0;
+  return appointmentsState.filter(
+    (a) => a.status === "pendiente" && (a.ticketNumber || 0) > currentNum
+  );
+}
+
+function renderQueueBoard() {
+  if (!currentBiz) return;
+  const currentNum = currentBiz.queue?.currentNumber || 0;
+  const lastNum = currentBiz.queue?.lastNumber || 0;
+  const waiting = getWaitingAppointments();
+  const nextApp = waiting[0];
+
+  document.getElementById("queueCurrentNum").textContent = `#${currentNum}`;
+  document.getElementById("queueLastNum").textContent = `#${lastNum}`;
+  document.getElementById("queueWaitingCount").textContent = waiting.length;
+  document.getElementById("queueNextLabel").textContent = nextApp
+    ? `#${nextApp.ticketNumber} — ${nextApp.customerName} (${nextApp.serviceName || "Turno"})`
+    : "Sin turnos en espera";
+}
+
+document.getElementById("nextTurnBtn").addEventListener("click", async () => {
+  if (!requireOperational()) return;
+  const currentNum = currentBiz.queue?.currentNumber || 0;
+  const lastNum = currentBiz.queue?.lastNumber || 0;
+  const waiting = getWaitingAppointments();
+  const nextApp = waiting[0];
+
+  const currentActiveApps = appointmentsState.filter(
+    (a) => (a.status === "confirmado" || a.status === "pendiente") && (a.ticketNumber || 0) <= currentNum
+  );
+
+  if (!nextApp && currentActiveApps.length === 0) {
+    showToast("No hay más números en espera en este momento.");
+    return;
+  }
+
+  const btn = document.getElementById("nextTurnBtn");
+  btn.disabled = true;
+
+  try {
+    const batch = writeBatch(db);
+    currentActiveApps.forEach((a) => {
+      batch.update(doc(db, "businesses", currentBusinessId, "appointments", a.id), {
+        status: "atendido"
+      });
+    });
+
+    if (nextApp) {
+      batch.update(doc(db, "businesses", currentBusinessId, "appointments", nextApp.id), {
+        status: "confirmado"
+      });
+      batch.update(doc(db, "businesses", currentBusinessId), {
+        queue: {
+          currentNumber: nextApp.ticketNumber,
+          lastNumber: Math.max(lastNum, nextApp.ticketNumber)
+        }
+      });
+    }
+
+    await batch.commit();
+
+    if (nextApp) {
+      const waMsg = `¡Hola ${nextApp.customerName}! Es tu turno *#${nextApp.ticketNumber}* en *${currentBiz.name}* (${nextApp.serviceName || "Atención"}). ¡Ya puedes acercarte!`;
+      const waUrl = buildWhatsAppUrl(nextApp.customerPhone, waMsg);
+
+      document.getElementById("nextTurnWaText").textContent =
+        `Turno #${nextApp.ticketNumber} (${nextApp.customerName}) llamado`;
+      document.getElementById("nextTurnWaLink").href = waUrl;
+      document.getElementById("nextTurnWaBanner").classList.remove("hidden");
+
+      showToast(`Llamando al número #${nextApp.ticketNumber}`, "success");
+      window.open(waUrl, "_blank");
+    } else {
+      document.getElementById("nextTurnWaBanner").classList.add("hidden");
+      showToast("Turno finalizado. No quedan números en espera.", "success");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Error al avanzar al siguiente número", "error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("resetQueueBtn").addEventListener("click", async () => {
+  if (!requireOperational()) return;
+  if (!confirm("¿Reiniciar los números a #0 para comenzar una nueva jornada? Se limpiará la lista actual de turnos.")) return;
+
+  try {
+    const chunks = [];
+    for (let i = 0; i < appointmentsState.length; i += 400) {
+      chunks.push(appointmentsState.slice(i, i + 400));
+    }
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach((a) => {
+        batch.delete(doc(db, "businesses", currentBusinessId, "appointments", a.id));
+      });
+      await batch.commit();
+    }
+
+    await updateDoc(doc(db, "businesses", currentBusinessId), {
+      queue: { currentNumber: 0, lastNumber: 0 }
+    });
+
+    document.getElementById("nextTurnWaBanner").classList.add("hidden");
+    showToast("Fila reiniciada a #0", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("No se pudo reiniciar la fila", "error");
+  }
+});
 
 document.getElementById("appointmentStatusFilter").addEventListener("change", renderAppointments);
 document.getElementById("refreshAppointmentsBtn").addEventListener("click", async () => {
   await loadBusinessDashboard();
-  showToast("Turnos actualizados");
+  showToast("Lista actualizada");
 });
 
 function renderAppointments() {
@@ -360,40 +518,42 @@ function renderAppointments() {
   const list = appointmentsState.filter((a) => filter === "all" || a.status === filter);
 
   if (list.length === 0) {
-    container.innerHTML = `<div class="empty-state text-sm">No hay turnos en esta categoría.</div>`;
+    container.innerHTML = `<div class="empty-state text-sm">No hay números en esta categoría.</div>`;
     return;
   }
 
   container.innerHTML = list
     .map((a) => {
       const status = a.status || "pendiente";
+      const numLabel = a.ticketNumber ? `#${a.ticketNumber}` : "—";
       const waMsg =
         status === "cancelado"
-          ? `Hola ${a.customerName}, te escribimos de ${currentBiz.name}. Tu turno para ${a.serviceName} (${a.date || ""} ${a.time || ""}) fue cancelado. Si deseas reprogramar, avísanos por aquí.`
-          : `Hola ${a.customerName}, te escribimos de ${currentBiz.name}. Tu turno para *${a.serviceName}* (${a.date || ""} ${a.time || ""}) está *${status.toUpperCase()}*. ¡Te esperamos!`;
+          ? `Hola ${a.customerName}, te escribimos de ${currentBiz.name}. Tu turno ${numLabel} (${a.serviceName}) fue cancelado.`
+          : `¡Hola ${a.customerName}! Te escribimos de *${currentBiz.name}* por tu turno *${numLabel}* (${a.serviceName}). ¡Ya casi es tu momento!`;
       const waUrl = buildWhatsAppUrl(a.customerPhone, waMsg);
 
       return `
         <div class="card card-compact">
           <div class="flex-between flex-wrap gap-2">
-            <div>
-              <div class="flex gap-1 flex-wrap">
-                <strong style="color:var(--dark);">${escapeHtml(a.customerName)}</strong>
-                <span class="badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>
-              </div>
-              <div class="text-sm mt-1">
-                Servicio: <strong>${escapeHtml(a.serviceName || "—")}</strong>
-                ${a.date ? `· Fecha: <strong>${escapeHtml(a.date)}</strong>` : ""}
-                ${a.time ? `· Hora: <strong>${escapeHtml(a.time)}</strong>` : ""}
-              </div>
-              <div class="text-xs text-muted mt-1">
-                WhatsApp: ${escapeHtml(a.customerPhone)} · Solicitado: ${formatDateTime(a.createdAt)}
+            <div class="flex gap-2" style="align-items:flex-start;">
+              <span class="queue-number-pill">${escapeHtml(numLabel)}</span>
+              <div>
+                <div class="flex gap-1 flex-wrap">
+                  <strong style="color:var(--dark);">${escapeHtml(a.customerName)}</strong>
+                  <span class="badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>
+                </div>
+                <div class="text-sm mt-1">
+                  Servicio: <strong>${escapeHtml(a.serviceName || "—")}</strong>
+                </div>
+                <div class="text-xs text-muted mt-1">
+                  WhatsApp: ${escapeHtml(a.customerPhone)} · ${formatDateTime(a.createdAt)}
+                </div>
               </div>
             </div>
             <div class="flex flex-wrap gap-1">
               <select class="select app-status-select" data-id="${a.id}" style="width:auto;min-height:36px;padding:4px 10px;font-size:0.82rem;">
-                <option value="pendiente" ${status === "pendiente" ? "selected" : ""}>Pendiente</option>
-                <option value="confirmado" ${status === "confirmado" ? "selected" : ""}>Confirmado</option>
+                <option value="pendiente" ${status === "pendiente" ? "selected" : ""}>En espera</option>
+                <option value="confirmado" ${status === "confirmado" ? "selected" : ""}>Llamado</option>
                 <option value="atendido" ${status === "atendido" ? "selected" : ""}>Atendido</option>
                 <option value="cancelado" ${status === "cancelado" ? "selected" : ""}>Cancelado</option>
               </select>
@@ -417,10 +577,7 @@ function renderAppointments() {
       const newStatus = e.target.value;
       try {
         await updateDoc(doc(db, "businesses", currentBusinessId, "appointments", id), { status: newStatus });
-        const target = appointmentsState.find((x) => x.id === id);
-        if (target) target.status = newStatus;
-        showToast("Estado del turno actualizado", "success");
-        renderAppointments();
+        showToast("Estado actualizado", "success");
       } catch (err) {
         console.error(err);
         showToast("No se pudo actualizar el turno", "error");
@@ -498,7 +655,6 @@ document.getElementById("categoryForm").addEventListener("submit", async (e) => 
   }
 });
 
-// Productos
 async function loadProducts() {
   const snap = await getDocs(collection(db, "businesses", currentBusinessId, "products"));
   productsState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -524,19 +680,19 @@ function renderProducts() {
         <div class="product-body">
           <div>
             <div class="flex-between gap-1">
-              <strong style="color:var(--dark);">${escapeHtml(p.name)}</strong>
+              <strong style="color:var(--dark);font-size:0.95rem;">${escapeHtml(p.name)}</strong>
               <span class="badge ${p.active !== false ? "badge-active" : "badge-inactive"}">
                 ${p.active !== false ? "Activo" : "Pausado"}
               </span>
             </div>
-            <div class="text-xs text-muted mt-1">${escapeHtml(p.categoryName || "General")}</div>
+            <div class="text-xs text-muted">${escapeHtml(p.categoryName || "General")}</div>
             ${p.description ? `<p class="text-xs text-muted mt-1">${escapeHtml(p.description)}</p>` : ""}
           </div>
-          <div>
-            <div class="font-bold mb-2" style="color:var(--primary);font-size:1.05rem;">${formatCurrency(p.price)}</div>
+          <div class="flex-between flex-wrap gap-1">
+            <strong style="color:var(--primary);font-size:0.98rem;">${formatCurrency(p.price)}</strong>
             <div class="flex gap-1 flex-wrap">
               <button class="btn btn-outline btn-sm toggle-product-btn" data-id="${p.id}">
-                ${p.active !== false ? "Desactivar" : "Activar"}
+                ${p.active !== false ? "Pausar" : "Activar"}
               </button>
               <button class="btn btn-secondary btn-sm edit-product-btn" data-id="${p.id}">Editar</button>
               <button class="btn btn-danger btn-sm delete-product-btn" data-id="${p.id}">✕</button>
@@ -675,7 +831,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
 
     productModal.classList.add("hidden");
     showToast("Producto guardado", "success");
-    await loadBusinessDashboard();
+    await loadProducts();
   } catch (err) {
     console.error(err);
     if (err.message === "LIMIT_REACHED") {
@@ -718,25 +874,76 @@ async function deleteProduct(id) {
       tx.update(bizRef, { "usage.productsCount": Math.max(0, used - 1) });
     });
     showToast("Producto eliminado");
-    await loadBusinessDashboard();
+    await loadProducts();
   } catch (err) {
     console.error(err);
     showToast("Error al eliminar producto", "error");
   }
 }
 
-// Pedidos recibidos
-async function loadOrders() {
+function startOrdersListener() {
   const q = query(collection(db, "businesses", currentBusinessId, "orders"), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  ordersState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  renderOrders();
+  unsubOrders = onSnapshot(q, (snap) => {
+    const newOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (!firstOrdersLoad) {
+      const incoming = newOrders.find((o) => !knownOrderIds.has(o.id) && o.status === "pendiente");
+      if (incoming) {
+        playAlertBeep();
+        showToast(`🔔 ¡Nuevo pedido de ${incoming.customerName}!`, "success");
+        const waMsg = `¡Hola ${incoming.customerName}! Recibimos tu pedido en *${currentBiz.name}* por ${formatCurrency(incoming.total)}. En breve comenzamos a prepararlo.`;
+        document.getElementById("newOrderAlertText").textContent =
+          `🔔 ¡Nuevo pedido de ${incoming.customerName} (${formatCurrency(incoming.total)})!`;
+        document.getElementById("newOrderAlertWaLink").href = buildWhatsAppUrl(incoming.customerPhone, waMsg);
+        document.getElementById("newOrderAlertBanner").classList.remove("hidden");
+      }
+    }
+
+    knownOrderIds = new Set(newOrders.map((o) => o.id));
+    firstOrdersLoad = false;
+    ordersState = newOrders;
+    renderOrders();
+  }, (err) => console.error(err));
 }
 
+document.getElementById("dismissOrderAlertBtn").addEventListener("click", () => {
+  document.getElementById("newOrderAlertBanner").classList.add("hidden");
+});
+
 document.getElementById("orderStatusFilter").addEventListener("change", renderOrders);
-document.getElementById("refreshOrdersBtn").addEventListener("click", async () => {
-  await loadOrders();
+document.getElementById("refreshOrdersBtn").addEventListener("click", () => {
+  renderOrders();
   showToast("Pedidos actualizados");
+});
+
+document.getElementById("clearOrdersHistoryBtn").addEventListener("click", async () => {
+  if (!requireOperational()) return;
+  if (ordersState.length === 0) {
+    showToast("No hay pedidos en el historial.");
+    return;
+  }
+  if (!confirm("¿Seguro que deseas eliminar todo el historial de pedidos? Esta acción no se puede deshacer.")) {
+    return;
+  }
+
+  try {
+    const chunks = [];
+    for (let i = 0; i < ordersState.length; i += 400) {
+      chunks.push(ordersState.slice(i, i + 400));
+    }
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach((o) => {
+        batch.delete(doc(db, "businesses", currentBusinessId, "orders", o.id));
+      });
+      await batch.commit();
+    }
+    document.getElementById("newOrderAlertBanner").classList.add("hidden");
+    showToast("Historial de pedidos eliminado", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("Error al eliminar el historial", "error");
+  }
 });
 
 function renderOrders() {
@@ -758,7 +965,9 @@ function renderOrders() {
 
       const waMsg =
         status === "listo"
-          ? `¡Hola ${o.customerName}! Tu pedido en *${currentBiz.name}* ya está *LISTO* ✅. Total: ${formatCurrency(o.total)}. ¡Te esperamos!`
+          ? `¡Hola ${o.customerName}! Tu pedido en *${currentBiz.name}* ya está *LISTO*. Total: ${formatCurrency(o.total)}. ¡Te esperamos!`
+          : status === "pendiente"
+          ? `¡Hola ${o.customerName}! Recibimos tu pedido en *${currentBiz.name}* (${formatCurrency(o.total)}). ¡Muchas gracias!`
           : `Hola ${o.customerName}, te escribimos de *${currentBiz.name}* por tu pedido (${formatCurrency(o.total)}). Estado actual: *${status.toUpperCase()}*.`;
       const waUrl = buildWhatsAppUrl(o.customerPhone, waMsg);
 
@@ -806,10 +1015,7 @@ function renderOrders() {
       const newStatus = e.target.value;
       try {
         await updateDoc(doc(db, "businesses", currentBusinessId, "orders", id), { status: newStatus });
-        const target = ordersState.find((x) => x.id === id);
-        if (target) target.status = newStatus;
         showToast("Estado del pedido actualizado", "success");
-        renderOrders();
       } catch (err) {
         console.error(err);
         showToast("No se pudo actualizar el pedido", "error");
@@ -899,8 +1105,8 @@ function downloadQrPng(elementId, filename) {
 // ==========================================
 function fillSettingsForm() {
   document.getElementById("settingWhatsapp").value = currentBiz.whatsapp || "";
-  document.getElementById("settingPrimaryColor").value = currentBiz.theme?.primaryColor || "#4f46e5";
-  document.getElementById("settingAccentColor").value = currentBiz.theme?.accentColor || "#0f172a";
+  document.getElementById("settingPrimaryColor").value = currentBiz.theme?.primaryColor || "#7c3aed";
+  document.getElementById("settingAccentColor").value = currentBiz.theme?.accentColor || "#07192b";
   document.getElementById("settingAllowOrders").checked = currentBiz.allowOrders !== false;
 }
 
@@ -918,7 +1124,6 @@ document.getElementById("settingsForm").addEventListener("submit", async (e) => 
       }
     });
     showToast("Personalización guardada", "success");
-    await loadBusinessDashboard();
   } catch (err) {
     console.error(err);
     showToast("Error al guardar cambios", "error");
