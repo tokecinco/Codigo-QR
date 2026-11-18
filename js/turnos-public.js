@@ -2,8 +2,8 @@ import { db } from "./firebase-config.js";
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
+  onSnapshot,
   runTransaction,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
@@ -19,13 +19,34 @@ let businessId = null;
 let currentBiz = null;
 let activeServices = [];
 let selectedService = null;
+let activeTicket = null;
+let servicesLoaded = false;
 
 const loadingEl = document.getElementById("turnosLoading");
 const unavailableEl = document.getElementById("turnosUnavailable");
+const queueBoardEl = document.getElementById("turnosQueueBoard");
 const formViewEl = document.getElementById("turnosFormView");
 const successViewEl = document.getElementById("turnosSuccessView");
 
-window.addEventListener("DOMContentLoaded", async () => {
+function getTicketStorageKey() {
+  return `toke_qr_ticket_${businessId}`;
+}
+
+function loadSavedTicket() {
+  try {
+    const raw = localStorage.getItem(getTicketStorageKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveTicketLocally(ticketObj) {
+  activeTicket = ticketObj;
+  localStorage.setItem(getTicketStorageKey(), JSON.stringify(ticketObj));
+}
+
+window.addEventListener("DOMContentLoaded", () => {
   lucide.createIcons();
   const params = new URLSearchParams(window.location.search);
   businessId = params.get("id")?.trim();
@@ -35,84 +56,166 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  document.getElementById("appDate").value = today;
-  document.getElementById("appDate").min = today;
-
-  await initTurnosPage();
+  activeTicket = loadSavedTicket();
+  startLiveBusinessWatcher();
 });
 
-async function initTurnosPage() {
-  try {
-    const bizSnap = await getDoc(doc(db, "businesses", businessId));
-    if (!bizSnap.exists()) {
-      showUnavailable("Negocio no encontrado", "El código QR no corresponde a un negocio activo.");
-      return;
+function startLiveBusinessWatcher() {
+  onSnapshot(
+    doc(db, "businesses", businessId),
+    async (bizSnap) => {
+      if (!bizSnap.exists()) {
+        showUnavailable("Negocio no encontrado", "El código QR no corresponde a un negocio activo.");
+        return;
+      }
+
+      currentBiz = { id: bizSnap.id, ...bizSnap.data() };
+      applyBranding();
+
+      if (!currentBiz.active || isExpired(currentBiz.expiresAt)) {
+        showUnavailable(
+          "Turnos temporalmente pausados",
+          "Este negocio no tiene habilitada la recepción de turnos en este momento.",
+          true
+        );
+        return;
+      }
+
+      if (!currentBiz.limits?.includesTurnos) {
+        showUnavailable(
+          "Módulo no habilitado",
+          "Este comercio no utiliza el sistema de Turnos QR.",
+          true
+        );
+        return;
+      }
+
+      const lastNum = currentBiz.queue?.lastNumber || 0;
+      if (activeTicket && lastNum < activeTicket.ticketNumber) {
+        localStorage.removeItem(getTicketStorageKey());
+        activeTicket = null;
+      }
+
+      updateLiveQueueUI();
+
+      if (!servicesLoaded) {
+        servicesLoaded = true;
+        const used = currentBiz.usage?.appointmentsCount || 0;
+        const max = currentBiz.limits?.maxAppointments || 0;
+
+        if (used >= max && !activeTicket) {
+          showUnavailable(
+            "Cupo de turnos completo",
+            "Este negocio alcanzó el límite de turnos disponibles por el momento. Puedes escribirles directamente por WhatsApp.",
+            true
+          );
+          return;
+        }
+
+        const srvSnap = await getDocs(collection(db, "businesses", businessId, "services"));
+        activeServices = srvSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((s) => s.active !== false);
+
+        if (activeServices.length === 0) {
+          showUnavailable(
+            "Sin servicios cargados",
+            "El negocio aún no configuró servicios disponibles para reservar.",
+            true
+          );
+          return;
+        }
+
+        renderServicesList();
+        loadingEl.classList.add("hidden");
+        queueBoardEl.classList.remove("hidden");
+
+        if (activeTicket && activeTicket.ticketNumber >= (currentBiz.queue?.currentNumber || 0)) {
+          showTicketSuccessView(activeTicket);
+        } else {
+          formViewEl.classList.remove("hidden");
+        }
+        lucide.createIcons();
+      }
+    },
+    (err) => {
+      console.error(err);
+      showUnavailable("Error de conexión", "No pudimos cargar los turnos. Intenta nuevamente.");
     }
+  );
+}
 
-    currentBiz = { id: bizSnap.id, ...bizSnap.data() };
-    applyBranding();
+function updateLiveQueueUI() {
+  if (!currentBiz) return;
+  const currentNum = currentBiz.queue?.currentNumber || 0;
+  const lastNum = currentBiz.queue?.lastNumber || 0;
+  const waiting = Math.max(0, lastNum - currentNum);
 
-    if (!currentBiz.active || isExpired(currentBiz.expiresAt)) {
-      showUnavailable(
-        "Turnos temporalmente pausados",
-        "Este negocio no tiene habilitada la recepción de turnos en este momento.",
-        true
-      );
-      return;
-    }
+  document.getElementById("liveCurrentNum").textContent = `#${currentNum}`;
+  document.getElementById("liveLastNum").textContent = `#${lastNum}`;
+  document.getElementById("liveWaitingNum").textContent = waiting;
 
-    if (!currentBiz.limits?.includesTurnos) {
-      showUnavailable(
-        "Módulo no habilitado",
-        "Este comercio no utiliza el sistema de Turnos QR.",
-        true
-      );
-      return;
-    }
+  const savedBanner = document.getElementById("mySavedTicketBanner");
+  if (activeTicket) {
+    const remaining = Math.max(0, activeTicket.ticketNumber - currentNum);
+    document.getElementById("mySavedTicketText").textContent =
+      currentNum > activeTicket.ticketNumber
+        ? `Tu turno #${activeTicket.ticketNumber} ya fue llamado`
+        : remaining === 0
+        ? `¡Es tu turno #${activeTicket.ticketNumber}!`
+        : `Tu turno: #${activeTicket.ticketNumber} · Te faltan ${remaining}`;
+    savedBanner.classList.remove("hidden");
+  } else {
+    savedBanner.classList.add("hidden");
+  }
 
-    const used = currentBiz.usage?.appointmentsCount || 0;
-    const max = currentBiz.limits?.maxAppointments || 0;
-    if (used >= max) {
-      showUnavailable(
-        "Cupo de turnos completo",
-        "Este negocio alcanzó el límite de turnos disponibles por el momento. Puedes escribirles directamente por WhatsApp.",
-        true
-      );
-      return;
-    }
+  if (activeTicket && !successViewEl.classList.contains("hidden")) {
+    updateSuccessTracker();
+  }
+}
 
-    const srvSnap = await getDocs(collection(db, "businesses", businessId, "services"));
-    activeServices = srvSnap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((s) => s.active !== false);
+function updateSuccessTracker() {
+  if (!activeTicket || !currentBiz) return;
+  const currentNum = currentBiz.queue?.currentNumber || 0;
+  const myNum = activeTicket.ticketNumber;
+  const diff = myNum - currentNum;
 
-    if (activeServices.length === 0) {
-      showUnavailable(
-        "Sin servicios cargados",
-        "El negocio aún no configuró servicios disponibles para reservar.",
-        true
-      );
-      return;
-    }
+  document.getElementById("myTicketBigNum").textContent = `#${myNum}`;
+  document.getElementById("liveTrackerCurrent").textContent = `#${currentNum}`;
 
-    renderServicesList();
-    loadingEl.classList.add("hidden");
-    formViewEl.classList.remove("hidden");
-    lucide.createIcons();
-  } catch (err) {
-    console.error(err);
-    showUnavailable("Error de conexión", "No pudimos cargar los turnos. Intenta nuevamente.");
+  const remEl = document.getElementById("liveTrackerRemaining");
+  const msgEl = document.getElementById("liveTrackerMsg");
+
+  if (diff > 1) {
+    remEl.textContent = `${diff}`;
+    remEl.style.color = "var(--primary)";
+    msgEl.textContent = `Faltan ${diff} números para tu turno. Esta pantalla se actualiza sola.`;
+    msgEl.style.color = "var(--dark)";
+  } else if (diff === 1) {
+    remEl.textContent = "1";
+    remEl.style.color = "var(--warning)";
+    msgEl.textContent = "⚡ ¡Prepárate! Eres el próximo número en pasar.";
+    msgEl.style.color = "#b45309";
+  } else if (diff === 0) {
+    remEl.textContent = "¡YA!";
+    remEl.style.color = "var(--success)";
+    msgEl.textContent = `🎉 ¡ES TU TURNO (#${myNum})! Ya puedes acercarte.`;
+    msgEl.style.color = "#047857";
+  } else {
+    remEl.textContent = "Llamado";
+    remEl.style.color = "var(--muted)";
+    msgEl.textContent = `El número #${myNum} ya fue llamado.`;
+    msgEl.style.color = "var(--muted)";
   }
 }
 
 function applyBranding() {
   document.title = `Turnos — ${currentBiz.name || "Toke QR"}`;
   document.getElementById("bizNameHeader").textContent = currentBiz.name || "Negocio";
-  document.getElementById("bizCategoryHeader").textContent = currentBiz.category || "Turnos QR";
+  document.getElementById("bizCategoryHeader").textContent = currentBiz.category || "Turnos por número";
 
-  const primary = currentBiz.theme?.primaryColor || "#4f46e5";
-  const accent = currentBiz.theme?.accentColor || "#0f172a";
+  const primary = currentBiz.theme?.primaryColor || "#7c3aed";
+  const accent = currentBiz.theme?.accentColor || "#07192b";
   document.documentElement.style.setProperty("--primary", primary);
   document.documentElement.style.setProperty("--dark", accent);
   document.getElementById("bizBrandIcon").style.background = primary;
@@ -121,7 +224,7 @@ function applyBranding() {
     const waBtn = document.getElementById("bizContactWaBtn");
     waBtn.href = buildWhatsAppUrl(
       currentBiz.whatsapp,
-      `Hola ${currentBiz.name}, quiero consultar sobre un turno.`
+      `Hola ${currentBiz.name}, quiero consultar sobre los turnos.`
     );
     waBtn.classList.remove("hidden");
   }
@@ -129,14 +232,16 @@ function applyBranding() {
 
 function showUnavailable(title, msg, showWa = false) {
   loadingEl.classList.add("hidden");
+  queueBoardEl.classList.add("hidden");
   formViewEl.classList.add("hidden");
+  successViewEl.classList.add("hidden");
   document.getElementById("unavailableTitle").textContent = title;
   document.getElementById("unavailableMsg").textContent = msg;
   const waBtn = document.getElementById("unavailableWaBtn");
   if (showWa && currentBiz?.whatsapp) {
     waBtn.href = buildWhatsAppUrl(
       currentBiz.whatsapp,
-      `Hola ${currentBiz.name}, quisiera consultar para solicitar un turno.`
+      `Hola ${currentBiz.name}, quisiera consultar por un turno.`
     );
     waBtn.classList.remove("hidden");
   }
@@ -161,7 +266,7 @@ function renderServicesList() {
           <strong style="color:var(--dark);">${escapeHtml(s.name)}</strong>
           <strong style="color:var(--primary);">${formatCurrency(s.price || 0)}</strong>
         </div>
-        <div class="text-xs text-muted mt-1">Duración aprox: ${s.duration || 30} min</div>
+        <div class="text-xs text-muted mt-1">Duración aprox: ${s.duration || 15} min</div>
       </button>
     `
     )
@@ -192,8 +297,6 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
 
   const customerName = document.getElementById("customerName").value.trim();
   const customerPhone = document.getElementById("customerPhone").value.trim();
-  const date = document.getElementById("appDate").value;
-  const time = document.getElementById("appTime").value;
 
   if (customerPhone.replace(/[^\d]/g, "").length < 6) {
     showToast("Ingresa un número de WhatsApp válido", "error");
@@ -202,11 +305,13 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
 
   const btn = document.getElementById("submitAppointmentBtn");
   btn.disabled = true;
-  btn.textContent = "Enviando solicitud...";
+  btn.textContent = "Asignando número...";
 
   try {
     const bizRef = doc(db, "businesses", businessId);
     const appRef = doc(collection(db, "businesses", businessId, "appointments"));
+
+    let assignedTicketNumber = 1;
 
     await runTransaction(db, async (tx) => {
       const bizSnap = await tx.get(bizRef);
@@ -220,44 +325,39 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
         throw new Error("LIMIT_REACHED");
       }
 
+      const currentNum = data.queue?.currentNumber || 0;
+      const lastNum = data.queue?.lastNumber || 0;
+      assignedTicketNumber = lastNum + 1;
+
       tx.set(appRef, {
+        ticketNumber: assignedTicketNumber,
         serviceId: selectedService.id,
         serviceName: selectedService.name,
         customerName,
         customerPhone,
-        date,
-        time,
         status: "pendiente",
         createdAt: serverTimestamp()
       });
 
       tx.update(bizRef, {
-        "usage.appointmentsCount": used + 1
+        "usage.appointmentsCount": used + 1,
+        queue: {
+          currentNumber: currentNum,
+          lastNumber: assignedTicketNumber
+        }
       });
     });
 
-    formViewEl.classList.add("hidden");
-    document.getElementById("successSummary").innerHTML = `
-      <div><strong>Negocio:</strong> ${escapeHtml(currentBiz.name)}</div>
-      <div><strong>Servicio:</strong> ${escapeHtml(selectedService.name)} (${formatCurrency(selectedService.price || 0)})</div>
-      <div><strong>Fecha y hora:</strong> ${escapeHtml(date)} a las ${escapeHtml(time)}</div>
-      <div><strong>Cliente:</strong> ${escapeHtml(customerName)}</div>
-    `;
-
-    const waBtn = document.getElementById("successWaBtn");
-    if (currentBiz.whatsapp) {
-      waBtn.href = buildWhatsAppUrl(
-        currentBiz.whatsapp,
-        `Hola ${currentBiz.name}, acabo de solicitar un turno:\n• Servicio: ${selectedService.name}\n• Fecha: ${date} ${time}\n• Nombre: ${customerName}`
-      );
-      waBtn.classList.remove("hidden");
-    } else {
-      waBtn.classList.add("hidden");
-    }
-
-    successViewEl.classList.remove("hidden");
-    showToast("¡Turno solicitado con éxito!", "success");
-    lucide.createIcons();
+    const ticketInfo = {
+      id: appRef.id,
+      ticketNumber: assignedTicketNumber,
+      serviceName: selectedService.name,
+      servicePrice: selectedService.price || 0,
+      customerName
+    };
+    saveTicketLocally(ticketInfo);
+    showTicketSuccessView(ticketInfo);
+    showToast(`¡Tu número es el #${assignedTicketNumber}!`, "success");
   } catch (err) {
     console.error(err);
     if (err.message === "LIMIT_REACHED") {
@@ -269,14 +369,47 @@ document.getElementById("bookAppointmentForm").addEventListener("submit", async 
     } else if (err.message === "BUSINESS_INACTIVE") {
       showUnavailable("Turnos pausados", "Este negocio pausó su recepción de turnos.", true);
     } else {
-      showToast("No se pudo registrar el turno. Revisa los datos.", "error");
+      showToast("No se pudo sacar número. Revisa los datos.", "error");
     }
   } finally {
     btn.disabled = false;
-    btn.textContent = "Confirmar solicitud de turno";
+    btn.textContent = "Sacar mi número de turno";
+  }
+});
+
+function showTicketSuccessView(ticketInfo) {
+  formViewEl.classList.add("hidden");
+  document.getElementById("successSummary").innerHTML = `
+    <div><strong>Negocio:</strong> ${escapeHtml(currentBiz.name)}</div>
+    <div><strong>Número asignado:</strong> #${ticketInfo.ticketNumber}</div>
+    <div><strong>Servicio:</strong> ${escapeHtml(ticketInfo.serviceName)} (${formatCurrency(ticketInfo.servicePrice || 0)})</div>
+    <div><strong>Cliente:</strong> ${escapeHtml(ticketInfo.customerName)}</div>
+  `;
+
+  const waBtn = document.getElementById("successWaBtn");
+  if (currentBiz.whatsapp) {
+    waBtn.href = buildWhatsAppUrl(
+      currentBiz.whatsapp,
+      `Hola ${currentBiz.name}, acabo de sacar el turno *#${ticketInfo.ticketNumber}*:\n• Servicio: ${ticketInfo.serviceName}\n• Nombre: ${ticketInfo.customerName}`
+    );
+    waBtn.classList.remove("hidden");
+  } else {
+    waBtn.classList.add("hidden");
+  }
+
+  updateSuccessTracker();
+  successViewEl.classList.remove("hidden");
+  lucide.createIcons();
+}
+
+document.getElementById("viewMyTicketBtn").addEventListener("click", () => {
+  if (activeTicket) {
+    showTicketSuccessView(activeTicket);
   }
 });
 
 document.getElementById("bookAnotherBtn").addEventListener("click", () => {
-  window.location.reload();
+  successViewEl.classList.add("hidden");
+  document.getElementById("bookAppointmentForm").reset();
+  formViewEl.classList.remove("hidden");
 });
