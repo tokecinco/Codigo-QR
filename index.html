@@ -165,19 +165,19 @@
     <section id="packagesSection" class="mt-4">
       <div class="text-center mb-3">
         <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.08em;">
-          Planes Semanales
+          Planes Individuales por Servicio
         </span>
         <h2 style="font-size:clamp(1.4rem,4vw,2rem);color:#ffffff;margin-top:4px;">
-          Elige el paquete para tu negocio
+          Elige tu plan: Básico o Premium
         </h2>
         <p class="text-sm" style="color:#cbd5e1;margin-top:4px;">
-          Sin contratos largos. Activa tu servicio en minutos y comienza hoy mismo.
+          Cada precio corresponde a <strong>1 servicio individual</strong> (Turnos QR <em>o</em> Menú y Catálogo QR).
         </p>
       </div>
 
       <div id="landingPackagesGrid" class="grid-2">
         <div class="card text-center" style="grid-column:1/-1;">
-          <p class="text-muted">Cargando paquetes disponibles...</p>
+          <p class="text-muted">Cargando planes disponibles...</p>
         </div>
       </div>
     </section>
@@ -192,6 +192,13 @@
       <div id="reqPkgSummary" class="card card-compact mb-3" style="background:var(--primary-soft);border-color:rgba(124,58,237,0.28);"></div>
       <form id="requestPackageForm">
         <input type="hidden" id="reqPkgId" />
+        <div class="form-group">
+          <label class="form-label" for="reqServiceType">Servicio que deseas contratar *</label>
+          <select id="reqServiceType" class="select" required>
+            <option value="Turnos QR">Turnos QR (Turnero por número)</option>
+            <option value="Menú y Catálogo QR">Menú y Catálogo QR (Productos y pedidos)</option>
+          </select>
+        </div>
         <div class="form-group">
           <label class="form-label" for="reqBizName">Nombre de tu negocio *</label>
           <input type="text" id="reqBizName" class="input" placeholder="Ej: Panadería Del Sol" required />
@@ -295,7 +302,7 @@
                   }">
                     ${isPremium ? "⭐ Más elegido" : "Plan Inicial"}
                   </span>
-                  <span class="text-xs" style="color:#94a3b8;">Duración: ${days} días</span>
+                  <span class="text-xs" style="color:#94a3b8;">Precio individual · ${days} días</span>
                 </div>
 
                 <h3 style="font-size:1.3rem;color:#ffffff;">${escapeHtml(pkg.name)}</h3>
@@ -303,25 +310,13 @@
                   <span style="font-size:2rem;font-weight:800;color:${isPremium ? "#c4b5fd" : "#5eead4"};">
                     ${formatCurrency(pkg.weeklyPrice)}
                   </span>
-                  <span class="text-sm" style="color:#94a3b8;"> / ${days} días</span>
+                  <span class="text-sm" style="color:#94a3b8;"> / ${days} días por servicio</span>
                 </div>
 
                 <ul class="feature-list">
                   <li>
-                    <i data-lucide="${pkg.includesTurnos ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesTurnos ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
-                    <span>${
-                      pkg.includesTurnos
-                        ? `Turnos QR incluidos (hasta <strong>${pkg.maxAppointments}</strong> turnos)`
-                        : "Sin módulo de Turnos QR"
-                    }</span>
-                  </li>
-                  <li>
-                    <i data-lucide="${pkg.includesMenu ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesMenu ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
-                    <span>${
-                      pkg.includesMenu
-                        ? `Menú y Catálogo QR (hasta <strong>${pkg.maxProducts}</strong> productos)`
-                        : "Sin módulo de Menú QR"
-                    }</span>
+                    <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
+                    <span>Elige <strong>1 servicio</strong>: Turnos QR (hasta <strong>${pkg.maxAppointments}</strong> turnos) <strong>o</strong> Menú QR (hasta <strong>${pkg.maxProducts}</strong> productos)</span>
                   </li>
                   <li>
                     <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
@@ -329,7 +324,11 @@
                   </li>
                   <li>
                     <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
-                    <span>Carteles QR imprimibles en PNG y avisos WhatsApp</span>
+                    <span>Cartel QR imprimible en PNG y avisos por WhatsApp</span>
+                  </li>
+                  <li>
+                    <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
+                    <span>Historial diario y semanal incluido</span>
                   </li>
                 </ul>
               </div>
@@ -361,11 +360,11 @@
       document.getElementById("reqPkgId").value = pkgKey;
       document.getElementById("reqPkgSummary").innerHTML = `
         <div class="flex-between">
-          <strong style="color:var(--dark);">${escapeHtml(pkg.name)}</strong>
+          <strong style="color:var(--dark);">${escapeHtml(pkg.name)} (Individual)</strong>
           <strong style="color:var(--primary);">${formatCurrency(pkg.weeklyPrice)} / ${pkg.durationDays || 7} días</strong>
         </div>
         <div class="text-xs text-muted mt-1">
-          Incluye: ${pkg.includesTurnos ? `${pkg.maxAppointments} turnos` : ""}${pkg.includesTurnos && pkg.includesMenu ? " · " : ""}${pkg.includesMenu ? `${pkg.maxProducts} productos` : ""}
+          Capacidad: hasta ${pkg.maxAppointments} turnos (si eliges Turnos QR) o hasta ${pkg.maxProducts} productos (si eliges Menú QR).
         </div>
       `;
       modalEl.classList.remove("hidden");
@@ -379,12 +378,14 @@
       e.preventDefault();
       const pkgKey = document.getElementById("reqPkgId").value;
       const pkg = loadedPackages[pkgKey];
+      const serviceType = document.getElementById("reqServiceType").value;
       const bizName = document.getElementById("reqBizName").value.trim();
       const bizCat = document.getElementById("reqBizCategory").value.trim();
       const bizPhone = document.getElementById("reqBizPhone").value.trim();
 
       const msg =
         `¡Hola! Quiero solicitar el *${pkg.name}* (${formatCurrency(pkg.weeklyPrice)} / ${pkg.durationDays || 7} días) de *Toke QR*.\n` +
+        `• Servicio elegido: ${serviceType}\n` +
         `• Negocio: ${bizName}\n` +
         `• Rubro: ${bizCat}` +
         (bizPhone ? `\n• Mi WhatsApp: ${bizPhone}` : "");
@@ -397,4 +398,4 @@
     loadLandingPackages();
   </script>
 </body>
-          </html>
+            </html>
