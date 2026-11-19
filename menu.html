@@ -25,12 +25,10 @@
   </header>
 
   <main class="container">
-    <!-- Cargando -->
     <div id="menuLoading" class="card text-center">
       <p class="text-muted">Cargando catálogo...</p>
     </div>
 
-    <!-- No disponible -->
     <div id="menuUnavailable" class="card container-sm text-center hidden">
       <div class="brand-icon" style="margin:0 auto 12px;background:var(--danger-soft);color:var(--danger);">
         <i data-lucide="store"></i>
@@ -45,9 +43,18 @@
       </a>
     </div>
 
-    <!-- Catálogo -->
     <div id="menuCatalogView" class="hidden">
-      <!-- Buscador y Categorías -->
+      <div id="billActionBar" class="card card-compact mb-3 flex-between flex-wrap gap-2">
+        <div>
+          <strong style="color:var(--dark);font-size:0.95rem;">¿Ya terminaste de consumir?</strong>
+          <div class="text-xs text-muted">Solicita la cuenta directo desde tu mesa.</div>
+        </div>
+        <button id="openBillModalBtn" type="button" class="btn btn-turquoise btn-sm">
+          <i data-lucide="receipt" style="width:16px;height:16px;"></i>
+          Pedir la cuenta
+        </button>
+      </div>
+
       <div class="mb-3">
         <input
           type="text"
@@ -59,24 +66,22 @@
         <div id="menuCategoriesTabs" class="tabs" style="margin-bottom:0;"></div>
       </div>
 
-      <!-- Productos -->
       <div id="menuProductsGrid" class="grid-3"></div>
     </div>
 
-    <!-- Confirmación de pedido exitoso -->
     <div id="orderSuccessView" class="card container-sm text-center hidden">
       <div class="brand-icon" style="margin:0 auto 14px;width:54px;height:54px;background:var(--success-soft);color:var(--success);">
         <i data-lucide="check-circle-2"></i>
       </div>
-      <h2 style="font-size:1.3rem;color:var(--dark);">¡Pedido enviado!</h2>
-      <p class="text-sm text-muted mt-1 mb-3">
+      <h2 id="orderSuccessTitle" style="font-size:1.3rem;color:var(--dark);">¡Pedido enviado!</h2>
+      <p id="orderSuccessSubtitle" class="text-sm text-muted mt-1 mb-3">
         El negocio recibió tu pedido. Cuando esté listo te avisarán por WhatsApp.
       </p>
       <div id="orderSuccessSummary" class="card card-compact text-sm mb-3" style="background:var(--bg);text-align:left;"></div>
       <div class="grid" style="gap:10px;">
         <a id="orderSuccessWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-block">
           <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
-          Enviar pedido por WhatsApp también
+          Enviar aviso por WhatsApp también
         </a>
         <button id="newOrderBtn" type="button" class="btn btn-outline btn-block">
           Volver al menú
@@ -85,7 +90,6 @@
     </div>
   </main>
 
-  <!-- Barra flotante de carrito -->
   <div id="cartBar" class="cart-bar hidden">
     <div>
       <div class="text-xs" style="opacity:0.8;" id="cartItemsCount">0 productos</div>
@@ -97,7 +101,6 @@
     </button>
   </div>
 
-  <!-- Modal Confirmar Pedido -->
   <div id="cartModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-3">
@@ -114,8 +117,8 @@
 
       <form id="checkoutOrderForm">
         <div class="form-group">
-          <label class="form-label" for="orderCustomerName">Tu nombre *</label>
-          <input type="text" id="orderCustomerName" class="input" placeholder="Ej: María Gómez" required />
+          <label class="form-label" for="orderCustomerName">Tu nombre o mesa *</label>
+          <input type="text" id="orderCustomerName" class="input" placeholder="Ej: Mesa 4 - María" required />
         </div>
         <div class="form-group">
           <label class="form-label" for="orderCustomerPhone">Tu número de WhatsApp *</label>
@@ -123,8 +126,8 @@
           <span class="text-xs text-muted">Para avisarte cuando tu pedido esté listo.</span>
         </div>
         <div class="form-group">
-          <label class="form-label" for="orderNotes">Notas / Mesa / Aclaraciones (opcional)</label>
-          <textarea id="orderNotes" class="textarea" style="min-height:64px;" placeholder="Ej: Mesa 4, sin cebolla..."></textarea>
+          <label class="form-label" for="orderNotes">Notas / Aclaraciones (opcional)</label>
+          <textarea id="orderNotes" class="textarea" style="min-height:64px;" placeholder="Ej: Sin cebolla..."></textarea>
         </div>
 
         <button type="submit" id="submitOrderBtn" class="btn btn-primary btn-block">
@@ -134,6 +137,44 @@
     </div>
   </div>
 
+  <div id="billModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-3">
+        <h2 style="font-size:1.2rem;color:var(--dark);">Pedir la cuenta</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeBillModal">✕</button>
+      </div>
+
+      <form id="checkoutBillForm">
+        <div class="form-group">
+          <label class="form-label" for="billTableOrName">Número de mesa o tu nombre *</label>
+          <input type="text" id="billTableOrName" class="input" placeholder="Ej: Mesa 4 / Juan" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="billPaymentMethod">Forma de pago preferida *</label>
+          <select id="billPaymentMethod" class="select" required>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta / Débito">Tarjeta / Débito (Posnet)</option>
+            <option value="QR / Billetera virtual">QR / Billetera virtual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="billCustomerPhone">Tu WhatsApp (opcional)</label>
+          <input type="tel" id="billCustomerPhone" class="input" placeholder="Ej: 5491122334455" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="billNotes">Notas (opcional)</label>
+          <input type="text" id="billNotes" class="input" placeholder="Ej: Cuentas separadas, traer posnet..." />
+        </div>
+
+        <button type="submit" id="submitBillBtn" class="btn btn-turquoise btn-block mt-2">
+          <i data-lucide="receipt" style="width:16px;height:16px;"></i>
+          Solicitar cuenta ahora
+        </button>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="js/menu-public.js"></script>
 </body>
-  </html>
+            </html>
