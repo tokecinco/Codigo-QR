@@ -8,7 +8,49 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    .qr-box img { max-width: 210px; height: auto; border-radius: 8px; }
+    .qr-box img { max-width: 200px; height: auto; border-radius: 8px; }
+    .qr-poster-preview {
+      background: linear-gradient(155deg, #071b2e 0%, #0d2b45 100%);
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      border-radius: 20px;
+      padding: 18px 16px;
+      color: #ffffff;
+      text-align: center;
+      max-width: 320px;
+      margin: 0 auto;
+      box-shadow: 0 18px 34px -12px rgba(5, 18, 30, 0.55);
+    }
+    .qr-poster-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .qr-poster-biz {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+    .qr-poster-cta {
+      margin-top: 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #5eead4;
+    }
+    .qr-poster-sub {
+      font-size: 0.74rem;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -122,6 +164,7 @@
       </button>
     </nav>
 
+    <!-- TAB 1: TURNOS QR -->
     <section id="tab-turnos" class="tab-panel">
       <div id="turnosDisabledMsg" class="card empty-state hidden">
         Tu paquete actual no incluye el módulo de Turnos QR.
@@ -181,6 +224,25 @@
           </div>
         </div>
 
+        <!-- Historial y Resumen de Turnos (Día y Semana) -->
+        <div class="card mb-3">
+          <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:10px;">Historial de Turnos (Día y Semana)</h2>
+          <div class="grid-2 mb-3">
+            <div class="stat-card">
+              <div class="stat-label">Turnos de Hoy</div>
+              <div class="stat-value" id="turnosTodayCount">0</div>
+              <div class="text-xs text-muted" id="turnosTodayAttended">0 atendidos hoy</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total de la Semana</div>
+              <div class="stat-value" id="turnosWeekCount">0</div>
+              <div class="text-xs text-muted" id="turnosWeekAttended">0 atendidos (7 días)</div>
+            </div>
+          </div>
+          <div id="turnosDailyHistoryList" class="grid" style="gap:8px;"></div>
+        </div>
+
+        <!-- Servicios de turnos -->
         <div class="card mb-3">
           <div class="flex-between flex-wrap gap-2 mb-2">
             <div>
@@ -195,22 +257,27 @@
           <div id="servicesList" class="grid-2"></div>
         </div>
 
+        <!-- Lista de Turnos -->
         <div class="card">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
               <h2 style="font-size:1.08rem;color:var(--dark);">Lista de Turnos</h2>
               <p class="text-xs text-muted">Se actualiza automáticamente cuando alguien saca un número.</p>
             </div>
-            <div class="flex gap-2">
-              <select id="appointmentStatusFilter" class="select" style="max-width:160px;">
+            <div class="flex flex-wrap gap-1">
+              <select id="appointmentStatusFilter" class="select" style="width:auto;max-width:150px;">
                 <option value="all">Todos</option>
                 <option value="pendiente">En espera</option>
                 <option value="confirmado">Llamado / Actual</option>
                 <option value="atendido">Atendidos</option>
                 <option value="cancelado">Cancelados</option>
               </select>
-              <button id="refreshAppointmentsBtn" class="btn btn-outline btn-sm">
+              <button id="refreshAppointmentsBtn" class="btn btn-outline btn-sm" title="Actualizar">
                 <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+              </button>
+              <button id="clearAppointmentsHistoryBtn" class="btn btn-danger btn-sm">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                Eliminar historial
               </button>
             </div>
           </div>
@@ -219,6 +286,7 @@
       </div>
     </section>
 
+    <!-- TAB 2: MENÚ Y PEDIDOS -->
     <section id="tab-menu" class="tab-panel hidden">
       <div id="menuDisabledMsg" class="card empty-state hidden">
         Tu paquete actual no incluye el módulo de Menú y Catálogos QR.
@@ -238,6 +306,24 @@
               <button id="dismissOrderAlertBtn" type="button" class="btn btn-outline btn-sm">✕</button>
             </div>
           </div>
+        </div>
+
+        <!-- Historial de Ventas (Día y Semana) -->
+        <div class="card mb-3">
+          <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:10px;">Historial de Ventas (Día y Semana)</h2>
+          <div class="grid-2 mb-3">
+            <div class="stat-card">
+              <div class="stat-label">Ventas de Hoy</div>
+              <div class="stat-value" id="salesTodayAmount">$0</div>
+              <div class="text-xs text-muted" id="salesTodayCount">0 pedidos hoy</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Ventas de la Semana</div>
+              <div class="stat-value" id="salesWeekAmount">$0</div>
+              <div class="text-xs text-muted" id="salesWeekCount">0 pedidos (7 días)</div>
+            </div>
+          </div>
+          <div id="salesDailyHistoryList" class="grid" style="gap:8px;"></div>
         </div>
 
         <div class="card mb-3">
@@ -291,44 +377,68 @@
       </div>
     </section>
 
+    <!-- TAB 3: MIS CÓDIGOS QR -->
     <section id="tab-qr" class="tab-panel hidden">
       <div class="grid-2">
         <div class="card text-center" id="qrTurnosCard">
-          <h2 style="font-size:1.1rem;color:var(--dark);">QR de Turnos</h2>
-          <p class="text-xs text-muted mb-3">Escaneando este código, tus clientes sacan número y ven cuánto falta.</p>
-          <div class="qr-box">
-            <div id="qrTurnosCanvas"></div>
+          <h2 style="font-size:1.1rem;color:var(--dark);">Cartel QR de Turnos</h2>
+          <p class="text-xs text-muted mb-3">Listo para imprimir, exhibir en recepción o compartir por WhatsApp.</p>
+
+          <div class="qr-poster-preview">
+            <span class="qr-poster-pill">Turnos QR en Vivo</span>
+            <div class="qr-poster-biz" id="qrTurnosBizName">Mi Negocio</div>
+            <div class="qr-box">
+              <div id="qrTurnosCanvas"></div>
+            </div>
+            <div class="qr-poster-cta">Escanea para sacar tu número</div>
+            <div class="qr-poster-sub">Mira cuántos faltan desde tu celular</div>
           </div>
+
           <div class="mt-3 text-xs text-muted" id="qrTurnosUrlText" style="word-break:break-all;"></div>
           <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
             <button id="copyTurnosLinkBtn" class="btn btn-outline btn-sm">
               <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
             </button>
-            <button id="downloadTurnosQrBtn" class="btn btn-primary btn-sm">
-              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar PNG
+            <a id="shareTurnosWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
+              <i data-lucide="message-circle" style="width:14px;height:14px;"></i> Enviar por WhatsApp
+            </a>
+            <button id="downloadTurnosQrBtn" class="btn btn-electric btn-sm">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar Cartel PNG
             </button>
           </div>
         </div>
 
         <div class="card text-center" id="qrMenuCard">
-          <h2 style="font-size:1.1rem;color:var(--dark);">QR de Menú y Catálogo</h2>
-          <p class="text-xs text-muted mb-3">Escaneando este código, ven tu catálogo y hacen pedidos.</p>
-          <div class="qr-box">
-            <div id="qrMenuCanvas"></div>
+          <h2 style="font-size:1.1rem;color:var(--dark);">Cartel QR de Menú y Mesas</h2>
+          <p class="text-xs text-muted mb-3">Listo para imprimir en mesas gastronómicas, mostradores o compartir.</p>
+
+          <div class="qr-poster-preview">
+            <span class="qr-poster-pill">Menú y Pedidos QR</span>
+            <div class="qr-poster-biz" id="qrMenuBizName">Mi Negocio</div>
+            <div class="qr-box">
+              <div id="qrMenuCanvas"></div>
+            </div>
+            <div class="qr-poster-cta">Escanea para ver nuestro menú</div>
+            <div class="qr-poster-sub">Consulta precios y haz tu pedido al instante</div>
           </div>
+
           <div class="mt-3 text-xs text-muted" id="qrMenuUrlText" style="word-break:break-all;"></div>
           <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
             <button id="copyMenuLinkBtn" class="btn btn-outline btn-sm">
               <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
             </button>
-            <button id="downloadMenuQrBtn" class="btn btn-primary btn-sm">
-              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar PNG
+            <a id="shareMenuWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
+              <i data-lucide="message-circle" style="width:14px;height:14px;"></i> Enviar por WhatsApp
+            </a>
+            <button id="downloadMenuQrBtn" class="btn btn-electric btn-sm">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar Cartel PNG
             </button>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- TAB 4: PERSONALIZACIÓN -->
     <section id="tab-settings" class="tab-panel hidden">
       <form id="settingsForm" class="card container-sm" style="margin:0;">
         <h2 style="font-size:1.1rem;color:var(--dark);margin-bottom:12px;">Apariencia y WhatsApp</h2>
@@ -443,4 +553,4 @@
 
   <script type="module" src="js/panel.js"></script>
 </body>
-          </html>
+            </html>
