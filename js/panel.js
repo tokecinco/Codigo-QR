@@ -35,15 +35,12 @@ const STORAGE_CODE_KEY = "toke_qr_business_code";
 
 let currentBusinessId = null;
 let currentBiz = null;
-let servicesState = [];
-let appointmentsState = [];
 let categoriesState = [];
 let productsState = [];
 let ordersState = [];
 let pendingProductImage = "";
 
 let unsubBiz = null;
-let unsubAppointments = null;
 let unsubOrders = null;
 let firstOrdersLoad = true;
 let knownOrderIds = new Set();
@@ -51,8 +48,6 @@ let knownOrderIds = new Set();
 const loginView = document.getElementById("panelLoginView");
 const dashboardView = document.getElementById("panelDashboardView");
 const logoutBtn = document.getElementById("panelLogoutBtn");
-
-const serviceModal = document.getElementById("serviceModal");
 const productModal = document.getElementById("productModal");
 
 function playAlertBeep() {
@@ -72,13 +67,12 @@ function playAlertBeep() {
     osc.start();
     osc.stop(ctx.currentTime + 0.35);
   } catch {
-    // Silencioso si el navegador bloquea audio automático
+    // Silencioso si el navegador bloquea audio
   }
 }
 
 function stopLiveListeners() {
   if (unsubBiz) { unsubBiz(); unsubBiz = null; }
-  if (unsubAppointments) { unsubAppointments(); unsubAppointments = null; }
   if (unsubOrders) { unsubOrders(); unsubOrders = null; }
 }
 
@@ -181,7 +175,6 @@ function requireOperational() {
   return true;
 }
 
-// Pestañas
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
@@ -200,7 +193,6 @@ async function loadBusinessDashboard() {
   if (!bizSnap.exists()) throw new Error("Negocio no encontrado");
   currentBiz = { id: bizSnap.id, ...bizSnap.data() };
 
-  // Restablecer colores originales si fueron cambiados previamente
   if (
     isBusinessOperational() &&
     (currentBiz.theme?.primaryColor !== "#7c3aed" || currentBiz.theme?.accentColor !== "#07192b")
@@ -216,26 +208,18 @@ async function loadBusinessDashboard() {
   }
 
   renderHeaderAndLimits();
-  renderQueueBoard();
   renderQrSection();
 
   unsubBiz = onSnapshot(doc(db, "businesses", currentBusinessId), (snap) => {
     if (!snap.exists()) return;
     currentBiz = { id: snap.id, ...snap.data() };
     renderHeaderAndLimits();
-    renderQueueBoard();
   });
 
-  const promises = [];
-  if (currentBiz.limits?.includesTurnos) {
-    promises.push(loadServices());
-    startAppointmentsListener();
-  }
   if (currentBiz.limits?.includesMenu) {
-    promises.push(loadCategories(), loadProducts());
+    await Promise.all([loadCategories(), loadProducts()]);
     startOrdersListener();
   }
-  await Promise.all(promises);
   lucide.createIcons();
 }
 
@@ -264,25 +248,13 @@ function renderHeaderAndLimits() {
     expiredAlert.classList.add("hidden");
   }
 
-  const usedApp = currentBiz.usage?.appointmentsCount || 0;
-  const maxApp = currentBiz.limits?.maxAppointments || 0;
-  const appPct = maxApp > 0 ? Math.min(100, Math.round((usedApp / maxApp) * 100)) : 100;
-  document.getElementById("turnosQuotaText").textContent = `${usedApp} / ${maxApp}`;
-  document.getElementById("turnosQuotaBar").style.width = `${appPct}%`;
-  document.getElementById("turnosQuotaBox").classList.toggle("hidden", !currentBiz.limits?.includesTurnos);
-
   const usedProd = currentBiz.usage?.productsCount || 0;
   const maxProd = currentBiz.limits?.maxProducts || 0;
   const prodPct = maxProd > 0 ? Math.min(100, Math.round((usedProd / maxProd) * 100)) : 100;
   document.getElementById("productsQuotaText").textContent = `${usedProd} / ${maxProd}`;
   document.getElementById("productsQuotaBar").style.width = `${prodPct}%`;
-  document.getElementById("productsQuotaBox").classList.toggle("hidden", !currentBiz.limits?.includesMenu);
 
-  const hasTurnos = Boolean(currentBiz.limits?.includesTurnos);
   const hasMenu = Boolean(currentBiz.limits?.includesMenu);
-
-  document.getElementById("turnosDisabledMsg").classList.toggle("hidden", hasTurnos);
-  document.getElementById("turnosModuleContent").classList.toggle("hidden", !hasTurnos);
   document.getElementById("menuDisabledMsg").classList.toggle("hidden", hasMenu);
   document.getElementById("menuModuleContent").classList.toggle("hidden", !hasMenu);
 
@@ -294,441 +266,6 @@ function renderHeaderAndLimits() {
       : `Disponibles: ${Math.max(0, maxProd - usedProd)} productos más en tu paquete.`;
 }
 
-// ==========================================
-// MÓDULO TURNOS QR POR NÚMERO
-// ==========================================
-async function loadServices() {
-  const snap = await getDocs(collection(db, "businesses", currentBusinessId, "services"));
-  servicesState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  renderServices();
-}
-
-function renderServices() {
-  const container = document.getElementById("servicesList");
-  if (servicesState.length === 0) {
-    container.innerHTML = `<div class="empty-state text-sm" style="grid-column:1/-1;">Aún no creaste servicios. Agrega uno para que tus clientes saquen número.</div>`;
-    return;
-  }
-
-  container.innerHTML = servicesState
-    .map(
-      (s) => `
-      <div class="card card-compact flex-between gap-2">
-        <div>
-          <div class="flex gap-1">
-            <strong style="color:var(--dark);">${escapeHtml(s.name)}</strong>
-            <span class="badge ${s.active !== false ? "badge-active" : "badge-inactive"}">
-              ${s.active !== false ? "Activo" : "Oculto"}
-            </span>
-          </div>
-          <div class="text-xs text-muted mt-1">
-            ${s.duration || 15} min · <strong>${formatCurrency(s.price || 0)}</strong>
-          </div>
-        </div>
-        <div class="flex gap-1">
-          <button class="btn btn-outline btn-sm edit-service-btn" data-id="${s.id}">Editar</button>
-          <button class="btn btn-danger btn-sm delete-service-btn" data-id="${s.id}">✕</button>
-        </div>
-      </div>
-    `
-    )
-    .join("");
-
-  container.querySelectorAll(".edit-service-btn").forEach((btn) =>
-    btn.addEventListener("click", () => openServiceModal(btn.dataset.id))
-  );
-  container.querySelectorAll(".delete-service-btn").forEach((btn) =>
-    btn.addEventListener("click", () => deleteService(btn.dataset.id))
-  );
-}
-
-document.getElementById("newServiceBtn").addEventListener("click", () => {
-  if (!requireOperational()) return;
-  openServiceModal(null);
-});
-document.getElementById("closeServiceModal").addEventListener("click", () => serviceModal.classList.add("hidden"));
-document.getElementById("cancelServiceModal").addEventListener("click", () => serviceModal.classList.add("hidden"));
-
-function openServiceModal(id) {
-  document.getElementById("serviceForm").reset();
-  if (!id) {
-    document.getElementById("serviceModalTitle").textContent = "Nuevo Servicio";
-    document.getElementById("serviceId").value = "";
-    document.getElementById("serviceDuration").value = 15;
-    document.getElementById("servicePrice").value = 0;
-    document.getElementById("serviceActive").checked = true;
-  } else {
-    const s = servicesState.find((x) => x.id === id);
-    if (!s) return;
-    document.getElementById("serviceModalTitle").textContent = "Editar Servicio";
-    document.getElementById("serviceId").value = s.id;
-    document.getElementById("serviceName").value = s.name || "";
-    document.getElementById("serviceDuration").value = s.duration || 15;
-    document.getElementById("servicePrice").value = s.price ?? 0;
-    document.getElementById("serviceActive").checked = s.active !== false;
-  }
-  serviceModal.classList.remove("hidden");
-}
-
-document.getElementById("serviceForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!requireOperational()) return;
-
-  const id = document.getElementById("serviceId").value;
-  const payload = {
-    name: document.getElementById("serviceName").value.trim(),
-    duration: Number(document.getElementById("serviceDuration").value || 15),
-    price: Number(document.getElementById("servicePrice").value || 0),
-    active: document.getElementById("serviceActive").checked
-  };
-
-  try {
-    if (id) {
-      await updateDoc(doc(db, "businesses", currentBusinessId, "services", id), payload);
-    } else {
-      await addDoc(collection(db, "businesses", currentBusinessId, "services"), payload);
-    }
-    serviceModal.classList.add("hidden");
-    showToast("Servicio guardado", "success");
-    await loadServices();
-  } catch (err) {
-    console.error(err);
-    showToast("Error al guardar servicio", "error");
-  }
-});
-
-async function deleteService(id) {
-  if (!requireOperational()) return;
-  if (!confirm("¿Eliminar este servicio?")) return;
-  try {
-    await deleteDoc(doc(db, "businesses", currentBusinessId, "services", id));
-    showToast("Servicio eliminado");
-    await loadServices();
-  } catch (err) {
-    console.error(err);
-    showToast("Error al eliminar servicio", "error");
-  }
-}
-
-function startAppointmentsListener() {
-  const q = query(collection(db, "businesses", currentBusinessId, "appointments"), orderBy("createdAt", "asc"));
-  unsubAppointments = onSnapshot(q, (snap) => {
-    appointmentsState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderQueueBoard();
-    renderTurnosHistorySummary();
-    renderAppointments();
-  }, (err) => console.error(err));
-}
-
-function getWaitingAppointments() {
-  const currentNum = currentBiz?.queue?.currentNumber || 0;
-  return appointmentsState
-    .filter((a) => a.status === "pendiente" && (a.ticketNumber || 0) > currentNum)
-    .sort((a, b) => (a.ticketNumber || 0) - (b.ticketNumber || 0));
-}
-
-function renderQueueBoard() {
-  if (!currentBiz) return;
-  const currentNum = currentBiz.queue?.currentNumber || 0;
-  const lastNum = currentBiz.queue?.lastNumber || 0;
-  const waiting = getWaitingAppointments();
-  const nextApp = waiting[0];
-
-  document.getElementById("queueCurrentNum").textContent = `#${currentNum}`;
-  document.getElementById("queueLastNum").textContent = `#${lastNum}`;
-  document.getElementById("queueWaitingCount").textContent = waiting.length;
-  document.getElementById("queueNextLabel").textContent = nextApp
-    ? `#${nextApp.ticketNumber} — ${nextApp.customerName} (${nextApp.serviceName || "Turno"})`
-    : "Sin turnos en espera";
-}
-
-function renderTurnosHistorySummary() {
-  const now = new Date();
-  const todayKey = getLocalDayKey(now);
-  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const yesterdayKey = getLocalDayKey(yesterday);
-  const weekCutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
-
-  let todayTotal = 0;
-  let todayAttended = 0;
-  let weekTotal = 0;
-  let weekAttended = 0;
-  const dailyMap = new Map();
-
-  appointmentsState.forEach((a) => {
-    const d = toJsDate(a.createdAt) || new Date();
-    const key = getLocalDayKey(d);
-    const isAttended = a.status === "atendido";
-
-    if (key === todayKey) {
-      todayTotal++;
-      if (isAttended) todayAttended++;
-    }
-    if (d.getTime() >= weekCutoff) {
-      weekTotal++;
-      if (isAttended) weekAttended++;
-      if (!dailyMap.has(key)) {
-        dailyMap.set(key, { total: 0, attended: 0 });
-      }
-      const entry = dailyMap.get(key);
-      entry.total++;
-      if (isAttended) entry.attended++;
-    }
-  });
-
-  document.getElementById("turnosTodayCount").textContent = todayTotal;
-  document.getElementById("turnosTodayAttended").textContent = `${todayAttended} atendidos hoy`;
-  document.getElementById("turnosWeekCount").textContent = weekTotal;
-  document.getElementById("turnosWeekAttended").textContent = `${weekAttended} atendidos (7 días)`;
-
-  const listEl = document.getElementById("turnosDailyHistoryList");
-  const sortedDays = Array.from(dailyMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-
-  if (sortedDays.length === 0) {
-    listEl.innerHTML = `<div class="text-xs text-muted">Aún no hay actividad registrada esta semana.</div>`;
-    return;
-  }
-
-  listEl.innerHTML = sortedDays
-    .map(([key, info]) => `
-      <div class="flex-between text-sm" style="padding:8px 12px;background:rgba(255,255,255,0.65);border-radius:10px;border:1px solid rgba(13,40,64,0.08);">
-        <strong style="color:var(--dark);">${escapeHtml(getDayLabel(key, todayKey, yesterdayKey))}</strong>
-        <span class="text-xs text-muted">
-          <strong style="color:var(--primary);">${info.total}</strong> turnos · ${info.attended} atendidos
-        </span>
-      </div>
-    `)
-    .join("");
-}
-
-document.getElementById("nextTurnBtn").addEventListener("click", async () => {
-  if (!requireOperational()) return;
-  const currentNum = currentBiz.queue?.currentNumber || 0;
-  const lastNum = currentBiz.queue?.lastNumber || 0;
-  const waiting = getWaitingAppointments();
-  const nextApp = waiting[0];
-
-  const currentActiveApps = appointmentsState.filter(
-    (a) => (a.status === "confirmado" || a.status === "pendiente") && (a.ticketNumber || 0) <= currentNum
-  );
-
-  if (!nextApp && currentActiveApps.length === 0) {
-    showToast("No hay más números en espera en este momento.");
-    return;
-  }
-
-  const btn = document.getElementById("nextTurnBtn");
-  btn.disabled = true;
-
-  try {
-    const batch = writeBatch(db);
-    currentActiveApps.forEach((a) => {
-      batch.update(doc(db, "businesses", currentBusinessId, "appointments", a.id), {
-        status: "atendido"
-      });
-    });
-
-    if (nextApp) {
-      batch.update(doc(db, "businesses", currentBusinessId, "appointments", nextApp.id), {
-        status: "confirmado"
-      });
-      batch.update(doc(db, "businesses", currentBusinessId), {
-        queue: {
-          currentNumber: nextApp.ticketNumber,
-          lastNumber: Math.max(lastNum, nextApp.ticketNumber)
-        }
-      });
-    }
-
-    await batch.commit();
-
-    if (nextApp) {
-      const waMsg = `¡Hola ${nextApp.customerName}! Es tu turno *#${nextApp.ticketNumber}* en *${currentBiz.name}* (${nextApp.serviceName || "Atención"}). ¡Ya puedes acercarte!`;
-      const waUrl = buildWhatsAppUrl(nextApp.customerPhone, waMsg);
-
-      document.getElementById("nextTurnWaText").textContent =
-        `Turno #${nextApp.ticketNumber} (${nextApp.customerName}) llamado`;
-      document.getElementById("nextTurnWaLink").href = waUrl;
-      document.getElementById("nextTurnWaBanner").classList.remove("hidden");
-
-      showToast(`Llamando al número #${nextApp.ticketNumber}`, "success");
-      window.open(waUrl, "_blank");
-    } else {
-      document.getElementById("nextTurnWaBanner").classList.add("hidden");
-      showToast("Turno finalizado. No quedan números en espera.", "success");
-    }
-  } catch (err) {
-    console.error(err);
-    showToast("Error al avanzar al siguiente número", "error");
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById("resetQueueBtn").addEventListener("click", async () => {
-  if (!requireOperational()) return;
-  if (!confirm("¿Reiniciar la numeración a #0 para comenzar una nueva jornada? (Se conservará el historial de turnos ya atendidos).")) return;
-
-  try {
-    const pendingToClose = appointmentsState.filter(
-      (a) => a.status === "pendiente" || a.status === "confirmado"
-    );
-    const chunks = [];
-    for (let i = 0; i < pendingToClose.length; i += 400) {
-      chunks.push(pendingToClose.slice(i, i + 400));
-    }
-    for (const chunk of chunks) {
-      const batch = writeBatch(db);
-      chunk.forEach((a) => {
-        batch.update(doc(db, "businesses", currentBusinessId, "appointments", a.id), {
-          status: "cancelado"
-        });
-      });
-      await batch.commit();
-    }
-
-    await updateDoc(doc(db, "businesses", currentBusinessId), {
-      queue: { currentNumber: 0, lastNumber: 0 }
-    });
-
-    document.getElementById("nextTurnWaBanner").classList.add("hidden");
-    showToast("Numeración reiniciada a #0", "success");
-  } catch (err) {
-    console.error(err);
-    showToast("No se pudo reiniciar la fila", "error");
-  }
-});
-
-document.getElementById("clearAppointmentsHistoryBtn").addEventListener("click", async () => {
-  if (!requireOperational()) return;
-  if (appointmentsState.length === 0) {
-    showToast("No hay turnos en el historial.");
-    return;
-  }
-  if (!confirm("¿Seguro que deseas eliminar todo el historial de turnos? Esta acción no se puede deshacer.")) {
-    return;
-  }
-
-  try {
-    const chunks = [];
-    for (let i = 0; i < appointmentsState.length; i += 400) {
-      chunks.push(appointmentsState.slice(i, i + 400));
-    }
-    for (const chunk of chunks) {
-      const batch = writeBatch(db);
-      chunk.forEach((a) => {
-        batch.delete(doc(db, "businesses", currentBusinessId, "appointments", a.id));
-      });
-      await batch.commit();
-    }
-
-    await updateDoc(doc(db, "businesses", currentBusinessId), {
-      queue: { currentNumber: 0, lastNumber: 0 }
-    });
-
-    document.getElementById("nextTurnWaBanner").classList.add("hidden");
-    showToast("Historial de turnos eliminado", "success");
-  } catch (err) {
-    console.error(err);
-    showToast("Error al eliminar historial de turnos", "error");
-  }
-});
-
-document.getElementById("appointmentStatusFilter").addEventListener("change", renderAppointments);
-document.getElementById("refreshAppointmentsBtn").addEventListener("click", async () => {
-  await loadBusinessDashboard();
-  showToast("Lista actualizada");
-});
-
-function renderAppointments() {
-  const filter = document.getElementById("appointmentStatusFilter").value;
-  const container = document.getElementById("appointmentsList");
-  const list = appointmentsState
-    .filter((a) => filter === "all" || a.status === filter)
-    .sort((a, b) => {
-      const aActive = a.status === "pendiente" || a.status === "confirmado";
-      const bActive = b.status === "pendiente" || b.status === "confirmado";
-      if (aActive && !bActive) return -1;
-      if (!aActive && bActive) return 1;
-      if (aActive && bActive) return (a.ticketNumber || 0) - (b.ticketNumber || 0);
-      const ta = toJsDate(a.createdAt)?.getTime() || 0;
-      const tb = toJsDate(b.createdAt)?.getTime() || 0;
-      return tb - ta;
-    });
-
-  if (list.length === 0) {
-    container.innerHTML = `<div class="empty-state text-sm">No hay números en esta categoría.</div>`;
-    return;
-  }
-
-  container.innerHTML = list
-    .map((a) => {
-      const status = a.status || "pendiente";
-      const numLabel = a.ticketNumber ? `#${a.ticketNumber}` : "—";
-      const waMsg =
-        status === "cancelado"
-          ? `Hola ${a.customerName}, te escribimos de ${currentBiz.name}. Tu turno ${numLabel} (${a.serviceName}) fue cancelado.`
-          : `¡Hola ${a.customerName}! Te escribimos de *${currentBiz.name}* por tu turno *${numLabel}* (${a.serviceName}). ¡Ya casi es tu momento!`;
-      const waUrl = buildWhatsAppUrl(a.customerPhone, waMsg);
-
-      return `
-        <div class="card card-compact">
-          <div class="flex-between flex-wrap gap-2">
-            <div class="flex gap-2" style="align-items:flex-start;">
-              <span class="queue-number-pill">${escapeHtml(numLabel)}</span>
-              <div>
-                <div class="flex gap-1 flex-wrap">
-                  <strong style="color:var(--dark);">${escapeHtml(a.customerName)}</strong>
-                  <span class="badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>
-                </div>
-                <div class="text-sm mt-1">
-                  Servicio: <strong>${escapeHtml(a.serviceName || "—")}</strong>
-                </div>
-                <div class="text-xs text-muted mt-1">
-                  WhatsApp: ${escapeHtml(a.customerPhone)} · ${formatDateTime(a.createdAt)}
-                </div>
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <select class="select app-status-select" data-id="${a.id}" style="width:auto;min-height:36px;padding:4px 10px;font-size:0.82rem;">
-                <option value="pendiente" ${status === "pendiente" ? "selected" : ""}>En espera</option>
-                <option value="confirmado" ${status === "confirmado" ? "selected" : ""}>Llamado</option>
-                <option value="atendido" ${status === "atendido" ? "selected" : ""}>Atendido</option>
-                <option value="cancelado" ${status === "cancelado" ? "selected" : ""}>Cancelado</option>
-              </select>
-              <a href="${waUrl}" target="_blank" class="btn btn-whatsapp btn-sm">
-                <i data-lucide="message-circle" style="width:14px;height:14px;"></i> WhatsApp
-              </a>
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  container.querySelectorAll(".app-status-select").forEach((sel) => {
-    sel.addEventListener("change", async (e) => {
-      if (!requireOperational()) {
-        renderAppointments();
-        return;
-      }
-      const id = sel.dataset.id;
-      const newStatus = e.target.value;
-      try {
-        await updateDoc(doc(db, "businesses", currentBusinessId, "appointments", id), { status: newStatus });
-        showToast("Estado actualizado", "success");
-      } catch (err) {
-        console.error(err);
-        showToast("No se pudo actualizar el turno", "error");
-      }
-    });
-  });
-  lucide.createIcons();
-}
-
-// ==========================================
-// MÓDULO MENÚ Y CATÁLOGOS QR
-// ==========================================
 async function loadCategories() {
   const snap = await getDocs(collection(db, "businesses", currentBusinessId, "categories"));
   categoriesState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -1020,7 +557,10 @@ async function deleteProduct(id) {
   }
 }
 
-// Pedidos y Ventas (Día y Semana)
+function hasValidPhone(phone) {
+  return Boolean(phone && phone !== "Sin WhatsApp" && phone.replace(/[^\d]/g, "").length >= 6);
+}
+
 function startOrdersListener() {
   const q = query(collection(db, "businesses", currentBusinessId, "orders"), orderBy("createdAt", "desc"));
   unsubOrders = onSnapshot(q, (snap) => {
@@ -1030,11 +570,40 @@ function startOrdersListener() {
       const incoming = newOrders.find((o) => !knownOrderIds.has(o.id) && o.status === "pendiente");
       if (incoming) {
         playAlertBeep();
-        showToast(`🔔 ¡Nuevo pedido de ${incoming.customerName}!`, "success");
-        const waMsg = `¡Hola ${incoming.customerName}! Recibimos tu pedido en *${currentBiz.name}* por ${formatCurrency(incoming.total)}. En breve comenzamos a prepararlo.`;
-        document.getElementById("newOrderAlertText").textContent =
-          `🔔 ¡Nuevo pedido de ${incoming.customerName} (${formatCurrency(incoming.total)})!`;
-        document.getElementById("newOrderAlertWaLink").href = buildWhatsAppUrl(incoming.customerPhone, waMsg);
+        const waBtn = document.getElementById("newOrderAlertWaLink");
+
+        if (incoming.orderType === "bill") {
+          showToast(`🧾 ¡${incoming.customerName} pidió la cuenta!`, "success");
+          document.getElementById("newOrderAlertText").textContent =
+            `🧾 ¡${incoming.customerName} pidió la cuenta! (${incoming.paymentMethod || "A confirmar"})`;
+          document.getElementById("newOrderAlertSub").textContent =
+            incoming.notes ? `Nota: ${incoming.notes}` : "Acércate con la cuenta a la mesa.";
+          if (hasValidPhone(incoming.customerPhone)) {
+            waBtn.href = buildWhatsAppUrl(
+              incoming.customerPhone,
+              `¡Hola ${incoming.customerName}! Ya recibimos tu pedido de cuenta en *${currentBiz.name}* (${incoming.paymentMethod || ""}). ¡Enseguida vamos!`
+            );
+            waBtn.classList.remove("hidden");
+          } else {
+            waBtn.classList.add("hidden");
+          }
+        } else {
+          showToast(`🔔 ¡Nuevo pedido de ${incoming.customerName}!`, "success");
+          document.getElementById("newOrderAlertText").textContent =
+            `🔔 ¡Nuevo pedido de ${incoming.customerName} (${formatCurrency(incoming.total)})!`;
+          document.getElementById("newOrderAlertSub").textContent =
+            "Puedes confirmar el pedido al cliente por WhatsApp ahora.";
+          if (hasValidPhone(incoming.customerPhone)) {
+            waBtn.href = buildWhatsAppUrl(
+              incoming.customerPhone,
+              `¡Hola ${incoming.customerName}! Recibimos tu pedido en *${currentBiz.name}* por ${formatCurrency(incoming.total)}. En breve comenzamos a prepararlo.`
+            );
+            waBtn.classList.remove("hidden");
+          } else {
+            waBtn.classList.add("hidden");
+          }
+        }
+
         document.getElementById("newOrderAlertBanner").classList.remove("hidden");
       }
     }
@@ -1060,26 +629,28 @@ function renderSalesHistorySummary() {
   let weekCount = 0;
   const dailyMap = new Map();
 
-  ordersState.forEach((o) => {
-    const d = toJsDate(o.createdAt) || new Date();
-    const key = getLocalDayKey(d);
-    const total = Number(o.total || 0);
+  ordersState
+    .filter((o) => o.orderType !== "bill")
+    .forEach((o) => {
+      const d = toJsDate(o.createdAt) || new Date();
+      const key = getLocalDayKey(d);
+      const total = Number(o.total || 0);
 
-    if (key === todayKey) {
-      todayAmount += total;
-      todayCount++;
-    }
-    if (d.getTime() >= weekCutoff) {
-      weekAmount += total;
-      weekCount++;
-      if (!dailyMap.has(key)) {
-        dailyMap.set(key, { count: 0, amount: 0 });
+      if (key === todayKey) {
+        todayAmount += total;
+        todayCount++;
       }
-      const entry = dailyMap.get(key);
-      entry.count++;
-      entry.amount += total;
-    }
-  });
+      if (d.getTime() >= weekCutoff) {
+        weekAmount += total;
+        weekCount++;
+        if (!dailyMap.has(key)) {
+          dailyMap.set(key, { count: 0, amount: 0 });
+        }
+        const entry = dailyMap.get(key);
+        entry.count++;
+        entry.amount += total;
+      }
+    });
 
   document.getElementById("salesTodayAmount").textContent = formatCurrency(todayAmount);
   document.getElementById("salesTodayCount").textContent = `${todayCount} pedidos hoy`;
@@ -1123,7 +694,7 @@ document.getElementById("clearOrdersHistoryBtn").addEventListener("click", async
     showToast("No hay pedidos en el historial.");
     return;
   }
-  if (!confirm("¿Seguro que deseas eliminar todo el historial de pedidos? Esta acción no se puede deshacer.")) {
+  if (!confirm("¿Seguro que deseas eliminar todo el historial de pedidos y cuentas? Esta acción no se puede deshacer.")) {
     return;
   }
 
@@ -1140,7 +711,7 @@ document.getElementById("clearOrdersHistoryBtn").addEventListener("click", async
       await batch.commit();
     }
     document.getElementById("newOrderAlertBanner").classList.add("hidden");
-    showToast("Historial de pedidos eliminado", "success");
+    showToast("Historial eliminado", "success");
   } catch (err) {
     console.error(err);
     showToast("Error al eliminar el historial", "error");
@@ -1153,52 +724,62 @@ function renderOrders() {
   const list = ordersState.filter((o) => filter === "all" || o.status === filter);
 
   if (list.length === 0) {
-    container.innerHTML = `<div class="empty-state text-sm">No hay pedidos en esta categoría.</div>`;
+    container.innerHTML = `<div class="empty-state text-sm">No hay pedidos ni solicitudes de cuenta en esta categoría.</div>`;
     return;
   }
 
   container.innerHTML = list
     .map((o) => {
       const status = o.status || "pendiente";
-      const itemsText = (o.items || [])
-        .map((it) => `${it.qty}x ${escapeHtml(it.name)} (${formatCurrency(it.price * it.qty)})`)
-        .join(", ");
+      const isBill = o.orderType === "bill";
+      const canWa = hasValidPhone(o.customerPhone);
+      const itemsText = isBill
+        ? `Forma de pago: <strong>${escapeHtml(o.paymentMethod || "A confirmar")}</strong>`
+        : (o.items || [])
+            .map((it) => `${it.qty}x ${escapeHtml(it.name)} (${formatCurrency(it.price * it.qty)})`)
+            .join(", ");
 
-      const waMsg =
-        status === "listo"
-          ? `¡Hola ${o.customerName}! Tu pedido en *${currentBiz.name}* ya está *LISTO*. Total: ${formatCurrency(o.total)}. ¡Te esperamos!`
-          : status === "pendiente"
-          ? `¡Hola ${o.customerName}! Recibimos tu pedido en *${currentBiz.name}* (${formatCurrency(o.total)}). ¡Muchas gracias!`
-          : `Hola ${o.customerName}, te escribimos de *${currentBiz.name}* por tu pedido (${formatCurrency(o.total)}). Estado actual: *${status.toUpperCase()}*.`;
+      const waMsg = isBill
+        ? `¡Hola ${o.customerName}! Ya recibimos tu pedido de cuenta en *${currentBiz.name}*. ¡Enseguida nos acercamos!`
+        : status === "listo"
+        ? `¡Hola ${o.customerName}! Tu pedido en *${currentBiz.name}* ya está *LISTO*. Total: ${formatCurrency(o.total)}. ¡Te esperamos!`
+        : status === "pendiente"
+        ? `¡Hola ${o.customerName}! Recibimos tu pedido en *${currentBiz.name}* (${formatCurrency(o.total)}). ¡Muchas gracias!`
+        : `Hola ${o.customerName}, te escribimos de *${currentBiz.name}* por tu pedido (${formatCurrency(o.total)}). Estado actual: *${status.toUpperCase()}*.`;
       const waUrl = buildWhatsAppUrl(o.customerPhone, waMsg);
 
       return `
-        <div class="card card-compact">
+        <div class="card card-compact" ${isBill && status === "pendiente" ? 'style="border-color:#f59e0b;background:rgba(255,251,235,0.92);"' : ""}>
           <div class="flex-between flex-wrap gap-2">
             <div style="flex:1;min-width:220px;">
               <div class="flex gap-1 flex-wrap">
+                ${isBill ? `<span class="badge badge-pendiente">🧾 PIDE LA CUENTA</span>` : ""}
                 <strong style="color:var(--dark);">${escapeHtml(o.customerName)}</strong>
                 <span class="badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>
               </div>
               <div class="text-sm mt-1">${itemsText}</div>
               ${o.notes ? `<div class="text-xs text-muted mt-1">Nota: ${escapeHtml(o.notes)}</div>` : ""}
               <div class="text-xs text-muted mt-1">
-                Total: <strong style="color:var(--dark);">${formatCurrency(o.total)}</strong> ·
-                WhatsApp: ${escapeHtml(o.customerPhone)} ·
+                ${isBill ? "" : `Total: <strong style="color:var(--dark);">${formatCurrency(o.total)}</strong> · `}
+                ${canWa ? `WhatsApp: ${escapeHtml(o.customerPhone)} · ` : ""}
                 ${formatDateTime(o.createdAt)}
               </div>
             </div>
             <div class="flex flex-wrap gap-1">
               <select class="select order-status-select" data-id="${o.id}" style="width:auto;min-height:36px;padding:4px 10px;font-size:0.82rem;">
                 <option value="pendiente" ${status === "pendiente" ? "selected" : ""}>Pendiente</option>
-                <option value="preparando" ${status === "preparando" ? "selected" : ""}>Preparando</option>
+                <option value="preparando" ${status === "preparando" ? "selected" : ""}>${isBill ? "En camino" : "Preparando"}</option>
                 <option value="listo" ${status === "listo" ? "selected" : ""}>Listo</option>
-                <option value="entregado" ${status === "entregado" ? "selected" : ""}>Entregado</option>
+                <option value="entregado" ${status === "entregado" ? "selected" : ""}>${isBill ? "Cobrado" : "Entregado"}</option>
               </select>
-              <a href="${waUrl}" target="_blank" class="btn btn-whatsapp btn-sm">
-                <i data-lucide="message-circle" style="width:14px;height:14px;"></i>
-                ${status === "listo" ? "Avisar Listo" : "WhatsApp"}
-              </a>
+              ${
+                canWa
+                  ? `<a href="${waUrl}" target="_blank" class="btn btn-whatsapp btn-sm">
+                      <i data-lucide="message-circle" style="width:14px;height:14px;"></i>
+                      ${status === "listo" ? "Avisar Listo" : "WhatsApp"}
+                    </a>`
+                  : ""
+              }
             </div>
           </div>
         </div>
@@ -1216,44 +797,22 @@ function renderOrders() {
       const newStatus = e.target.value;
       try {
         await updateDoc(doc(db, "businesses", currentBusinessId, "orders", id), { status: newStatus });
-        showToast("Estado del pedido actualizado", "success");
+        showToast("Estado actualizado", "success");
       } catch (err) {
         console.error(err);
-        showToast("No se pudo actualizar el pedido", "error");
+        showToast("No se pudo actualizar", "error");
       }
     });
   });
   lucide.createIcons();
 }
 
-// ==========================================
-// MÓDULO CÓDIGOS QR + CARTEL IMPRIMIBLE PNG + WHATSAPP
-// ==========================================
 function renderQrSection() {
   const baseUrl = getBaseUrl();
-  const turnosUrl = `${baseUrl}/turnos.html?id=${encodeURIComponent(currentBusinessId)}`;
   const menuUrl = `${baseUrl}/menu.html?id=${encodeURIComponent(currentBusinessId)}`;
-
-  const turnosCard = document.getElementById("qrTurnosCard");
   const menuCard = document.getElementById("qrMenuCard");
 
-  turnosCard.classList.toggle("hidden", !currentBiz.limits?.includesTurnos);
   menuCard.classList.toggle("hidden", !currentBiz.limits?.includesMenu);
-
-  if (currentBiz.limits?.includesTurnos) {
-    document.getElementById("qrTurnosBizName").textContent = currentBiz.name || "Mi Negocio";
-    document.getElementById("qrTurnosUrlText").textContent = turnosUrl;
-    drawQr("qrTurnosCanvas", turnosUrl);
-    document.getElementById("copyTurnosLinkBtn").onclick = () => copyToClipboard(turnosUrl);
-    document.getElementById("shareTurnosWaBtn").href =
-      `https://wa.me/?text=${encodeURIComponent(`¡Hola! Saca tu número de turno en *${currentBiz.name}* desde este enlace:\n${turnosUrl}`)}`;
-    document.getElementById("downloadTurnosQrBtn").onclick = () =>
-      downloadQrPosterPng("qrTurnosCanvas", `Cartel-Turnos-${currentBiz.name}.png`, {
-        badge: "TURNOS QR EN VIVO",
-        cta: "Escanea para sacar tu número",
-        sub: "Sigue cuántos faltan en tiempo real desde tu celular"
-      });
-  }
 
   if (currentBiz.limits?.includesMenu) {
     document.getElementById("qrMenuBizName").textContent = currentBiz.name || "Mi Negocio";
@@ -1266,7 +825,7 @@ function renderQrSection() {
       downloadQrPosterPng("qrMenuCanvas", `Cartel-Menu-${currentBiz.name}.png`, {
         badge: "MENÚ Y PEDIDOS QR",
         cta: "Escanea para ver nuestro menú",
-        sub: "Consulta productos, precios y haz tu pedido al instante"
+        sub: "Haz tu pedido o pide la cuenta al instante"
       });
   }
 }
@@ -1412,4 +971,4 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("Cartel QR descargado en PNG", "success");
   }, "image/png");
-      }
+    }
