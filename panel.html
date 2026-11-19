@@ -132,173 +132,38 @@
         </div>
       </div>
 
-      <div class="grid-2 mt-2">
-        <div id="turnosQuotaBox">
-          <div class="flex-between text-xs">
-            <span class="text-muted font-bold">Límite de Turnos</span>
-            <strong id="turnosQuotaText">0 / 0</strong>
-          </div>
-          <div class="progress-bar">
-            <div id="turnosQuotaBar" class="progress-fill" style="width:0%;"></div>
-          </div>
+      <div class="mt-2" id="productsQuotaBox">
+        <div class="flex-between text-xs">
+          <span class="text-muted font-bold">Límite de Productos del Plan</span>
+          <strong id="productsQuotaText">0 / 0</strong>
         </div>
-        <div id="productsQuotaBox">
-          <div class="flex-between text-xs">
-            <span class="text-muted font-bold">Límite de Productos</span>
-            <strong id="productsQuotaText">0 / 0</strong>
-          </div>
-          <div class="progress-bar">
-            <div id="productsQuotaBar" class="progress-fill" style="width:0%;"></div>
-          </div>
+        <div class="progress-bar">
+          <div id="productsQuotaBar" class="progress-fill" style="width:0%;"></div>
         </div>
       </div>
     </section>
 
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="turnos" id="tabBtnTurnos">
-        <i data-lucide="hash" style="width:16px;height:16px;"></i>
-        Turnos QR
-      </button>
-      <button class="tab-btn" data-tab="menu" id="tabBtnMenu">
+      <button class="tab-btn active" data-tab="menu" id="tabBtnMenu">
         <i data-lucide="utensils" style="width:16px;height:16px;"></i>
         Menú y Pedidos
       </button>
       <button class="tab-btn" data-tab="qr" id="tabBtnQr">
         <i data-lucide="qr-code" style="width:16px;height:16px;"></i>
-        Mis Códigos QR
+        Mi Código QR
       </button>
     </nav>
 
-    <!-- TAB 1: TURNOS QR -->
-    <section id="tab-turnos" class="tab-panel">
-      <div id="turnosDisabledMsg" class="card empty-state hidden">
-        Tu paquete actual no incluye el módulo de Turnos QR.
-      </div>
-      <div id="turnosModuleContent">
-        <div class="queue-board mb-3">
-          <div class="flex-between flex-wrap gap-2 mb-3">
-            <div>
-              <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.06em;">
-                Turnero en Vivo
-              </span>
-              <h2 style="font-size:1.12rem;color:#ffffff;">Control de Números</h2>
-            </div>
-            <button id="resetQueueBtn" class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#e2e8f0;border:1px solid rgba(148,163,184,0.3);">
-              <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i>
-              Reiniciar fila
-            </button>
-          </div>
-
-          <div class="grid-3 mb-3" style="gap:10px;">
-            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
-              <div class="text-xs" style="color:#94a3b8;">Atendiendo ahora</div>
-              <div id="queueCurrentNum" style="font-size:1.65rem;font-weight:800;color:var(--turquoise-bright);">#0</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
-              <div class="text-xs" style="color:#94a3b8;">Último entregado</div>
-              <div id="queueLastNum" style="font-size:1.65rem;font-weight:800;color:#ffffff;">#0</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;">
-              <div class="text-xs" style="color:#94a3b8;">En espera</div>
-              <div id="queueWaitingCount" style="font-size:1.65rem;font-weight:800;color:#c4b5fd;">0</div>
-            </div>
-          </div>
-
-          <div class="flex-between flex-wrap gap-2" style="background:rgba(124,58,237,0.18);border:1px solid rgba(139,92,246,0.38);border-radius:14px;padding:12px;">
-            <div>
-              <div class="text-xs" style="color:#ddd6fe;">Próximo número a llamar:</div>
-              <strong id="queueNextLabel" style="color:#ffffff;font-size:0.98rem;">Sin turnos en espera</strong>
-            </div>
-            <button id="nextTurnBtn" class="btn btn-electric">
-              Siguiente número
-              <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
-            </button>
-          </div>
-        </div>
-
-        <div id="nextTurnWaBanner" class="card mb-3 hidden" style="border-color:rgba(22,163,74,0.45);background:rgba(220,252,231,0.92);">
-          <div class="flex-between flex-wrap gap-2">
-            <div>
-              <strong style="color:#14532d;" id="nextTurnWaText">Turno llamado</strong>
-              <div class="text-xs" style="color:#166534;">Toca para enviar la notificación por WhatsApp al cliente.</div>
-            </div>
-            <a id="nextTurnWaLink" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
-              <i data-lucide="message-circle" style="width:15px;height:15px;"></i>
-              Avisar por WhatsApp
-            </a>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:10px;">Historial de Turnos (Día y Semana)</h2>
-          <div class="grid-2 mb-3">
-            <div class="stat-card">
-              <div class="stat-label">Turnos de Hoy</div>
-              <div class="stat-value" id="turnosTodayCount">0</div>
-              <div class="text-xs text-muted" id="turnosTodayAttended">0 atendidos hoy</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Total de la Semana</div>
-              <div class="stat-value" id="turnosWeekCount">0</div>
-              <div class="text-xs text-muted" id="turnosWeekAttended">0 atendidos (7 días)</div>
-            </div>
-          </div>
-          <div id="turnosDailyHistoryList" class="grid" style="gap:8px;"></div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="flex-between flex-wrap gap-2 mb-2">
-            <div>
-              <h2 style="font-size:1.08rem;color:var(--dark);">Servicios para Turnos</h2>
-              <p class="text-xs text-muted">Configura qué servicios pueden elegir al sacar número.</p>
-            </div>
-            <button id="newServiceBtn" class="btn btn-primary btn-sm">
-              <i data-lucide="plus" style="width:15px;height:15px;"></i>
-              Nuevo Servicio
-            </button>
-          </div>
-          <div id="servicesList" class="grid-2"></div>
-        </div>
-
-        <div class="card">
-          <div class="flex-between flex-wrap gap-2 mb-3">
-            <div>
-              <h2 style="font-size:1.08rem;color:var(--dark);">Lista de Turnos</h2>
-              <p class="text-xs text-muted">Se actualiza automáticamente cuando alguien saca un número.</p>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <select id="appointmentStatusFilter" class="select" style="width:auto;max-width:150px;">
-                <option value="all">Todos</option>
-                <option value="pendiente">En espera</option>
-                <option value="confirmado">Llamado / Actual</option>
-                <option value="atendido">Atendidos</option>
-                <option value="cancelado">Cancelados</option>
-              </select>
-              <button id="refreshAppointmentsBtn" class="btn btn-outline btn-sm" title="Actualizar">
-                <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
-              </button>
-              <button id="clearAppointmentsHistoryBtn" class="btn btn-danger btn-sm">
-                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-                Eliminar historial
-              </button>
-            </div>
-          </div>
-          <div id="appointmentsList" class="grid"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 2: MENÚ Y PEDIDOS -->
-    <section id="tab-menu" class="tab-panel hidden">
+    <section id="tab-menu" class="tab-panel">
       <div id="menuDisabledMsg" class="card empty-state hidden">
-        Tu paquete actual no incluye el módulo de Menú y Catálogos QR.
+        Tu paquete actual no tiene habilitado el módulo de Menú y Catálogos QR.
       </div>
       <div id="menuModuleContent">
         <div id="newOrderAlertBanner" class="card mb-3 hidden" style="border-color:rgba(22,163,74,0.5);background:rgba(220,252,231,0.95);">
           <div class="flex-between flex-wrap gap-2">
             <div>
               <strong style="color:#14532d;" id="newOrderAlertText">🔔 ¡Nuevo pedido recibido!</strong>
-              <div class="text-xs" style="color:#166534;">Puedes confirmar el pedido al cliente por WhatsApp ahora.</div>
+              <div class="text-xs" style="color:#166534;" id="newOrderAlertSub">Puedes confirmar al cliente por WhatsApp ahora.</div>
             </div>
             <div class="flex gap-1">
               <a id="newOrderAlertWaLink" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
@@ -330,8 +195,8 @@
         <div class="card mb-3">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
-              <h2 style="font-size:1.08rem;color:var(--dark);">Pedidos Recibidos</h2>
-              <p class="text-xs text-muted">Actualiza el estado y avisa por WhatsApp cuando esté listo.</p>
+              <h2 style="font-size:1.08rem;color:var(--dark);">Pedidos y Cuentas Solicitadas</h2>
+              <p class="text-xs text-muted">Recibe pedidos, avisos de cuenta y responde por WhatsApp.</p>
             </div>
             <div class="flex flex-wrap gap-1">
               <select id="orderStatusFilter" class="select" style="width:auto;max-width:150px;">
@@ -339,7 +204,7 @@
                 <option value="pendiente">Pendientes</option>
                 <option value="preparando">Preparando</option>
                 <option value="listo">Listos</option>
-                <option value="entregado">Entregados</option>
+                <option value="entregado">Entregados / Cobrados</option>
               </select>
               <button id="refreshOrdersBtn" class="btn btn-outline btn-sm" title="Actualizar">
                 <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
@@ -378,101 +243,36 @@
       </div>
     </section>
 
-    <!-- TAB 3: MIS CÓDIGOS QR -->
     <section id="tab-qr" class="tab-panel hidden">
-      <div class="grid-2">
-        <div class="card text-center" id="qrTurnosCard">
-          <h2 style="font-size:1.1rem;color:var(--dark);">Cartel QR de Turnos</h2>
-          <p class="text-xs text-muted mb-3">Listo para imprimir, exhibir en recepción o compartir por WhatsApp.</p>
+      <div class="card text-center container-sm" id="qrMenuCard" style="margin:0 auto;">
+        <h2 style="font-size:1.1rem;color:var(--dark);">Cartel QR de Menú y Mesas</h2>
+        <p class="text-xs text-muted mb-3">Listo para imprimir en mesas gastronómicas, mostradores o compartir.</p>
 
-          <div class="qr-poster-preview">
-            <span class="qr-poster-pill">Turnos QR en Vivo</span>
-            <div class="qr-poster-biz" id="qrTurnosBizName">Mi Negocio</div>
-            <div class="qr-box">
-              <div id="qrTurnosCanvas"></div>
-            </div>
-            <div class="qr-poster-cta">Escanea para sacar tu número</div>
-            <div class="qr-poster-sub">Mira cuántos faltan desde tu celular</div>
+        <div class="qr-poster-preview">
+          <span class="qr-poster-pill">Menú y Pedidos QR</span>
+          <div class="qr-poster-biz" id="qrMenuBizName">Mi Negocio</div>
+          <div class="qr-box">
+            <div id="qrMenuCanvas"></div>
           </div>
-
-          <div class="mt-3 text-xs text-muted" id="qrTurnosUrlText" style="word-break:break-all;"></div>
-          <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
-            <button id="copyTurnosLinkBtn" class="btn btn-outline btn-sm">
-              <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
-            </button>
-            <a id="shareTurnosWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
-              <i data-lucide="message-circle" style="width:14px;height:14px;"></i> Enviar por WhatsApp
-            </a>
-            <button id="downloadTurnosQrBtn" class="btn btn-electric btn-sm">
-              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar Cartel PNG
-            </button>
-          </div>
+          <div class="qr-poster-cta">Escanea para ver nuestro menú</div>
+          <div class="qr-poster-sub">Haz tu pedido o pide la cuenta al instante</div>
         </div>
 
-        <div class="card text-center" id="qrMenuCard">
-          <h2 style="font-size:1.1rem;color:var(--dark);">Cartel QR de Menú y Mesas</h2>
-          <p class="text-xs text-muted mb-3">Listo para imprimir en mesas gastronómicas, mostradores o compartir.</p>
-
-          <div class="qr-poster-preview">
-            <span class="qr-poster-pill">Menú y Pedidos QR</span>
-            <div class="qr-poster-biz" id="qrMenuBizName">Mi Negocio</div>
-            <div class="qr-box">
-              <div id="qrMenuCanvas"></div>
-            </div>
-            <div class="qr-poster-cta">Escanea para ver nuestro menú</div>
-            <div class="qr-poster-sub">Consulta precios y haz tu pedido al instante</div>
-          </div>
-
-          <div class="mt-3 text-xs text-muted" id="qrMenuUrlText" style="word-break:break-all;"></div>
-          <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
-            <button id="copyMenuLinkBtn" class="btn btn-outline btn-sm">
-              <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
-            </button>
-            <a id="shareMenuWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
-              <i data-lucide="message-circle" style="width:14px;height:14px;"></i> Enviar por WhatsApp
-            </a>
-            <button id="downloadMenuQrBtn" class="btn btn-electric btn-sm">
-              <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar Cartel PNG
-            </button>
-          </div>
+        <div class="mt-3 text-xs text-muted" id="qrMenuUrlText" style="word-break:break-all;"></div>
+        <div class="flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap;">
+          <button id="copyMenuLinkBtn" class="btn btn-outline btn-sm">
+            <i data-lucide="copy" style="width:14px;height:14px;"></i> Copiar enlace
+          </button>
+          <a id="shareMenuWaBtn" href="#" target="_blank" class="btn btn-whatsapp btn-sm">
+            <i data-lucide="message-circle" style="width:14px;height:14px;"></i> Enviar por WhatsApp
+          </a>
+          <button id="downloadMenuQrBtn" class="btn btn-electric btn-sm">
+            <i data-lucide="download" style="width:14px;height:14px;"></i> Descargar Cartel PNG
+          </button>
         </div>
       </div>
     </section>
   </main>
-
-  <div id="serviceModal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="flex-between mb-3">
-        <h2 id="serviceModalTitle" style="font-size:1.15rem;color:var(--dark);">Nuevo Servicio</h2>
-        <button type="button" class="btn btn-outline btn-sm" id="closeServiceModal">✕</button>
-      </div>
-      <form id="serviceForm">
-        <input type="hidden" id="serviceId" />
-        <div class="form-group">
-          <label class="form-label">Nombre del servicio *</label>
-          <input type="text" id="serviceName" class="input" placeholder="Ej: Atención general" required />
-        </div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Duración estimada (min)</label>
-            <input type="number" id="serviceDuration" class="input" min="5" value="15" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Precio ($)</label>
-            <input type="number" id="servicePrice" class="input" min="0" step="any" value="0" required />
-          </div>
-        </div>
-        <label class="checkbox-row">
-          <input type="checkbox" id="serviceActive" checked />
-          Servicio visible para clientes
-        </label>
-        <div class="flex gap-2 mt-3">
-          <button type="button" id="cancelServiceModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
-          <button type="submit" class="btn btn-primary" style="flex:2;">Guardar Servicio</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <div id="productModal" class="modal-backdrop hidden">
     <div class="modal">
@@ -521,4 +321,4 @@
 
   <script type="module" src="js/panel.js"></script>
 </body>
-            </html>
+  </html>
