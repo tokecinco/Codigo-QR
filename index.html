@@ -38,8 +38,8 @@
         Conecta tu comercio con <span class="gradient-text">experiencias QR</span> rápidas y modernas
       </h1>
       <p>
-        Gestiona turnos online y catálogos interactivos desde el celular,
-        con códigos QR listos para imprimir y avisos directos por WhatsApp.
+        Gestiona turnos por número y catálogos interactivos desde el celular,
+        con carteles QR listos para imprimir y avisos directos por WhatsApp.
       </p>
       <div class="hero-pills">
         <span class="tech-pill">
@@ -48,7 +48,7 @@
         </span>
         <span class="tech-pill">
           <i data-lucide="download" style="width:14px;height:14px;color:#c4b5fd;"></i>
-          QR en PNG al instante
+          Carteles QR en PNG
         </span>
         <span class="tech-pill">
           <i data-lucide="message-circle" style="width:14px;height:14px;color:#4ade80;"></i>
@@ -58,7 +58,7 @@
     </section>
 
     <!-- Acceso Rápido por Código Único -->
-    <section class="container-sm" style="padding:0;margin-bottom:22px;">
+    <section class="container-sm" style="padding:0;margin-bottom:24px;">
       <div class="glass-access-card">
         <div class="flex-between mb-2">
           <div>
@@ -93,34 +93,33 @@
     </section>
 
     <!-- Secciones Diferenciadas: Turnos QR y Menú QR -->
-    <section class="grid-2">
-      <!-- Turnos QR (Identidad Violeta Eléctrico) -->
+    <section class="grid-2 mb-3">
       <article class="service-showcase service-showcase-violet">
         <div>
           <div class="flex-between mb-2">
             <span class="showcase-icon-violet">
-              <i data-lucide="calendar-clock"></i>
+              <i data-lucide="hash"></i>
             </span>
             <span class="badge" style="background:rgba(124,58,237,0.22);color:#ddd6fe;border:1px solid rgba(139,92,246,0.4);">
-              Reservas ágiles
+              Turnero por Número
             </span>
           </div>
           <h3 style="font-size:1.22rem;color:#ffffff;margin-bottom:6px;">Turnos QR</h3>
           <p class="text-sm" style="color:#cbd5e1;">
-            Ideal para barberías, consultorios, estética y servicios por cita previa.
+            Ideal para barberías, consultorios, estética y atención por orden de llegada.
           </p>
           <ul class="feature-list">
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              Reserva en segundos con nombre y WhatsApp
+              El cliente escanea, recibe su número y ve cuántos faltan en vivo
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              Control de pendientes, confirmados y atendidos
+              Botón "Siguiente número" con aviso directo por WhatsApp
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              Confirmación directa con un toque
+              Historial de turnos del día y total de la semana
             </li>
           </ul>
         </div>
@@ -130,7 +129,6 @@
         </a>
       </article>
 
-      <!-- Menú y Catálogos QR (Identidad Turquesa) -->
       <article class="service-showcase service-showcase-turquoise">
         <div>
           <div class="flex-between mb-2">
@@ -152,11 +150,11 @@
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
-              Recepción de pedidos en tiempo real
+              Alerta en tiempo real al recibir pedidos + aviso por WhatsApp
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
-              Aviso por WhatsApp cuando el pedido está listo
+              Resumen de ventas del día y de la semana
             </li>
           </ul>
         </div>
@@ -166,22 +164,242 @@
         </a>
       </article>
     </section>
+
+    <!-- Paquetes y Precios -->
+    <section id="packagesSection" class="mt-4">
+      <div class="text-center mb-3">
+        <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.08em;">
+          Planes Semanales
+        </span>
+        <h2 style="font-size:clamp(1.4rem,4vw,2rem);color:#ffffff;margin-top:4px;">
+          Elige el paquete para tu negocio
+        </h2>
+        <p class="text-sm" style="color:#cbd5e1;margin-top:4px;">
+          Sin contratos largos. Activa tu servicio en minutos y comienza hoy mismo.
+        </p>
+      </div>
+
+      <div id="landingPackagesGrid" class="grid-2">
+        <div class="card text-center" style="grid-column:1/-1;">
+          <p class="text-muted">Cargando paquetes disponibles...</p>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <!-- Modal Solicitar Paquete -->
+  <div id="requestPackageModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="flex-between mb-2">
+        <h2 style="font-size:1.18rem;color:var(--dark);">Solicitar Servicio Toke QR</h2>
+        <button type="button" class="btn btn-outline btn-sm" id="closeRequestModal">✕</button>
+      </div>
+      <div id="reqPkgSummary" class="card card-compact mb-3" style="background:var(--primary-soft);border-color:rgba(124,58,237,0.28);"></div>
+      <form id="requestPackageForm">
+        <input type="hidden" id="reqPkgId" />
+        <div class="form-group">
+          <label class="form-label" for="reqBizName">Nombre de tu negocio *</label>
+          <input type="text" id="reqBizName" class="input" placeholder="Ej: Panadería Del Sol" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reqBizCategory">Rubro *</label>
+          <input type="text" id="reqBizCategory" class="input" placeholder="Ej: Restaurante, Barbería, Tienda" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reqBizPhone">Tu WhatsApp (opcional)</label>
+          <input type="tel" id="reqBizPhone" class="input" placeholder="Ej: 5491122334455" />
+        </div>
+        <button type="submit" class="btn btn-whatsapp btn-block mt-2">
+          <i data-lucide="message-circle" style="width:17px;height:17px;"></i>
+          Enviar solicitud por WhatsApp
+        </button>
+      </form>
+    </div>
+  </div>
 
   <footer class="text-center text-xs text-muted mt-4" style="padding:22px 16px;">
     © <span id="year"></span> <strong>Toke QR</strong> — Tecnología QR para Negocios
   </footer>
 
-  <script>
+  <script type="module">
+    import { db } from "./js/firebase-config.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
+    import { formatCurrency, escapeHtml, buildWhatsAppUrl } from "./js/utils.js";
+
+    // REEMPLAZA ESTE NÚMERO CON TU WHATSAPP DE VENTAS (con código de país, sin +)
+    const ADMIN_WHATSAPP = "543815437283";
+
+    const FALLBACK_PACKAGES = {
+      basic: {
+        id: "basic",
+        name: "Paquete Básico",
+        weeklyPrice: 5000,
+        maxAppointments: 30,
+        maxProducts: 15,
+        durationDays: 7,
+        includesTurnos: true,
+        includesMenu: true
+      },
+      premium: {
+        id: "premium",
+        name: "Paquete Premium",
+        weeklyPrice: 9500,
+        maxAppointments: 200,
+        maxProducts: 80,
+        durationDays: 7,
+        includesTurnos: true,
+        includesMenu: true
+      }
+    };
+
+    let loadedPackages = { ...FALLBACK_PACKAGES };
+
     lucide.createIcons();
-    document.getElementById('year').textContent = new Date().getFullYear();
-    document.getElementById('quickAccessForm').addEventListener('submit', (e) => {
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    document.getElementById("quickAccessForm").addEventListener("submit", (e) => {
       e.preventDefault();
-      const code = document.getElementById('quickCodeInput').value.trim().toUpperCase();
+      const code = document.getElementById("quickCodeInput").value.trim().toUpperCase();
       if (code) {
         window.location.href = `panel.html?code=${encodeURIComponent(code)}`;
       }
     });
+
+    async function loadLandingPackages() {
+      try {
+        const [basicSnap, premiumSnap] = await Promise.all([
+          getDoc(doc(db, "packages", "basic")),
+          getDoc(doc(db, "packages", "premium"))
+        ]);
+        if (basicSnap.exists()) loadedPackages.basic = { id: "basic", ...basicSnap.data() };
+        if (premiumSnap.exists()) loadedPackages.premium = { id: "premium", ...premiumSnap.data() };
+      } catch (err) {
+        console.warn("Usando valores por defecto para paquetes:", err);
+      }
+      renderPackagesGrid();
+    }
+
+    function renderPackagesGrid() {
+      const grid = document.getElementById("landingPackagesGrid");
+      const order = ["basic", "premium"];
+
+      grid.innerHTML = order
+        .map((key) => {
+          const pkg = loadedPackages[key];
+          const isPremium = key === "premium";
+          const days = pkg.durationDays || 7;
+
+          return `
+            <article class="service-showcase ${isPremium ? "service-showcase-violet" : "service-showcase-turquoise"}">
+              <div>
+                <div class="flex-between mb-2">
+                  <span class="badge" style="${
+                    isPremium
+                      ? "background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;"
+                      : "background:rgba(6,182,212,0.2);color:#a5f3fc;border:1px solid rgba(45,212,191,0.4);"
+                  }">
+                    ${isPremium ? "⭐ Más elegido" : "Plan Inicial"}
+                  </span>
+                  <span class="text-xs" style="color:#94a3b8;">Duración: ${days} días</span>
+                </div>
+
+                <h3 style="font-size:1.3rem;color:#ffffff;">${escapeHtml(pkg.name)}</h3>
+                <div class="mt-2 mb-3">
+                  <span style="font-size:2rem;font-weight:800;color:${isPremium ? "#c4b5fd" : "#5eead4"};">
+                    ${formatCurrency(pkg.weeklyPrice)}
+                  </span>
+                  <span class="text-sm" style="color:#94a3b8;"> / ${days} días</span>
+                </div>
+
+                <ul class="feature-list">
+                  <li>
+                    <i data-lucide="${pkg.includesTurnos ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesTurnos ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
+                    ${
+                      pkg.includesTurnos
+                        ? `Turnos QR incluidos (hasta <strong>${pkg.maxAppointments}</strong> turnos)`
+                        : "Sin módulo de Turnos QR"
+                    }
+                  </li>
+                  <li>
+                    <i data-lucide="${pkg.includesMenu ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesMenu ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
+                    ${
+                      pkg.includesMenu
+                        ? `Menú y Catálogo QR (hasta <strong>${pkg.maxProducts}</strong> productos)`
+                        : "Sin módulo de Menú QR"
+                    }
+                  </li>
+                  <li>
+                    <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
+                    Panel privado con código único (sin correo)
+                  </li>
+                  <li>
+                    <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
+                    Carteles QR imprimibles en PNG y avisos WhatsApp
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                class="btn ${isPremium ? "btn-electric" : "btn-turquoise"} btn-block request-pkg-btn"
+                data-pkg="${key}"
+              >
+                <i data-lucide="send" style="width:16px;height:16px;"></i>
+                Solicitar ${escapeHtml(pkg.name)}
+              </button>
+            </article>
+          `;
+        })
+        .join("");
+
+      grid.querySelectorAll(".request-pkg-btn").forEach((btn) => {
+        btn.addEventListener("click", () => openRequestModal(btn.dataset.pkg));
+      });
+      lucide.createIcons();
+    }
+
+    const modalEl = document.getElementById("requestPackageModal");
+
+    function openRequestModal(pkgKey) {
+      const pkg = loadedPackages[pkgKey];
+      if (!pkg) return;
+      document.getElementById("reqPkgId").value = pkgKey;
+      document.getElementById("reqPkgSummary").innerHTML = `
+        <div class="flex-between">
+          <strong style="color:var(--dark);">${escapeHtml(pkg.name)}</strong>
+          <strong style="color:var(--primary);">${formatCurrency(pkg.weeklyPrice)} / ${pkg.durationDays || 7} días</strong>
+        </div>
+        <div class="text-xs text-muted mt-1">
+          Incluye: ${pkg.includesTurnos ? `${pkg.maxAppointments} turnos` : ""}${pkg.includesTurnos && pkg.includesMenu ? " · " : ""}${pkg.includesMenu ? `${pkg.maxProducts} productos` : ""}
+        </div>
+      `;
+      modalEl.classList.remove("hidden");
+    }
+
+    document.getElementById("closeRequestModal").addEventListener("click", () => {
+      modalEl.classList.add("hidden");
+    });
+
+    document.getElementById("requestPackageForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const pkgKey = document.getElementById("reqPkgId").value;
+      const pkg = loadedPackages[pkgKey];
+      const bizName = document.getElementById("reqBizName").value.trim();
+      const bizCat = document.getElementById("reqBizCategory").value.trim();
+      const bizPhone = document.getElementById("reqBizPhone").value.trim();
+
+      const msg =
+        `¡Hola! Quiero solicitar el *${pkg.name}* (${formatCurrency(pkg.weeklyPrice)} / ${pkg.durationDays || 7} días) de *Toke QR*.\n` +
+        `• Negocio: ${bizName}\n` +
+        `• Rubro: ${bizCat}` +
+        (bizPhone ? `\n• Mi WhatsApp: ${bizPhone}` : "");
+
+      const waUrl = buildWhatsAppUrl(ADMIN_WHATSAPP, msg);
+      window.open(waUrl, "_blank");
+      modalEl.classList.add("hidden");
+    });
+
+    loadLandingPackages();
   </script>
 </body>
-  </html>
+            </html>
