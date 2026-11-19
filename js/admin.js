@@ -11,7 +11,6 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   writeBatch,
   Timestamp
 } from "https://www.gstatic.com/firebasejs/13.3.0/firebase-firestore.js";
@@ -34,30 +33,28 @@ const DEFAULT_PACKAGES = {
     id: "basic",
     name: "Paquete Básico",
     weeklyPrice: 5000,
-    maxAppointments: 30,
+    maxAppointments: 0,
     maxProducts: 15,
     durationDays: 7,
-    includesTurnos: true,
+    includesTurnos: false,
     includesMenu: true
   },
   premium: {
     id: "premium",
     name: "Paquete Premium",
     weeklyPrice: 9500,
-    maxAppointments: 200,
+    maxAppointments: 0,
     maxProducts: 80,
     durationDays: 7,
-    includesTurnos: true,
+    includesTurnos: false,
     includesMenu: true
   }
 };
 
 let packagesState = { ...DEFAULT_PACKAGES };
 let businessesState = [];
-let appointmentsState = [];
 let ordersState = [];
 
-// Elementos UI
 const loginView = document.getElementById("adminLoginView");
 const dashboardView = document.getElementById("adminDashboardView");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -66,7 +63,6 @@ const adminEmailLabel = document.getElementById("adminEmailLabel");
 const businessModal = document.getElementById("businessModal");
 const renewModal = document.getElementById("renewModal");
 
-// Autenticación
 onAuthStateChanged(auth, async (user) => {
   if (user && !user.isAnonymous) {
     try {
@@ -115,7 +111,6 @@ logoutBtn.addEventListener("click", async () => {
   showToast("Sesión cerrada");
 });
 
-// Pestañas
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
@@ -125,7 +120,6 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
   });
 });
 
-// Carga general de datos
 async function loadAllAdminData() {
   await loadPackages();
   await loadBusinesses();
@@ -179,27 +173,14 @@ async function loadBusinesses() {
 }
 
 async function loadGlobalActivity() {
-  const [appSnap, ordSnap] = await Promise.all([
-    getDocs(collectionGroup(db, "appointments")),
-    getDocs(collectionGroup(db, "orders"))
-  ]);
-
-  appointmentsState = appSnap.docs.map((d) => ({
-    id: d.id,
-    businessId: d.ref.parent.parent ? d.ref.parent.parent.id : "",
-    type: "appointment",
-    ...d.data()
-  }));
-
+  const ordSnap = await getDocs(collectionGroup(db, "orders"));
   ordersState = ordSnap.docs.map((d) => ({
     id: d.id,
     businessId: d.ref.parent.parent ? d.ref.parent.parent.id : "",
-    type: "order",
     ...d.data()
   }));
 }
 
-// Estadísticas generales
 function renderStats() {
   const total = businessesState.length;
   const active = businessesState.filter((b) => b.active && !isExpired(b.expiresAt)).length;
@@ -210,16 +191,15 @@ function renderStats() {
     (sum, b) => sum + Number(b.private?.totalPaid || b.private?.lastPaymentAmount || 0),
     0
   );
+  const realOrdersCount = ordersState.filter((o) => o.orderType !== "bill").length;
 
   document.getElementById("statActiveBusinesses").textContent = active;
   document.getElementById("statTotalBusinesses").textContent = `de ${total} registrados`;
   document.getElementById("statExpiring").textContent = expiringOrExpired;
-  document.getElementById("statTotalAppointments").textContent = appointmentsState.length;
-  document.getElementById("statTotalOrders").textContent = ordersState.length;
-  document.getElementById("statTotalRevenue").textContent = `${formatCurrency(totalRevenue)} recaudados`;
+  document.getElementById("statTotalOrders").textContent = realOrdersCount;
+  document.getElementById("statTotalRevenue").textContent = formatCurrency(totalRevenue);
 }
 
-// Render Paquetes
 function renderPackages() {
   const container = document.getElementById("packagesContainer");
   container.innerHTML = ["basic", "premium"]
@@ -245,25 +225,9 @@ function renderPackages() {
               <input type="number" name="durationDays" class="input" min="1" value="${pkg.durationDays || 7}" required />
             </div>
           </div>
-          <div class="grid-2">
-            <div class="form-group">
-              <label class="form-label">Máx. turnos</label>
-              <input type="number" name="maxAppointments" class="input" min="0" value="${pkg.maxAppointments}" required />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Máx. productos</label>
-              <input type="number" name="maxProducts" class="input" min="0" value="${pkg.maxProducts}" required />
-            </div>
-          </div>
           <div class="form-group">
-            <label class="checkbox-row">
-              <input type="checkbox" name="includesTurnos" ${pkg.includesTurnos ? "checked" : ""} />
-              Incluye Turnos QR
-            </label>
-            <label class="checkbox-row">
-              <input type="checkbox" name="includesMenu" ${pkg.includesMenu ? "checked" : ""} />
-              Incluye Menú y Catálogos QR
-            </label>
+            <label class="form-label">Máx. productos en el menú</label>
+            <input type="number" name="maxProducts" class="input" min="0" value="${pkg.maxProducts}" required />
           </div>
           <button type="submit" class="btn btn-primary btn-block mt-2">
             Guardar ${escapeHtml(pkg.name)}
@@ -282,10 +246,10 @@ function renderPackages() {
         name: form.name.value.trim(),
         weeklyPrice: Number(form.weeklyPrice.value),
         durationDays: Number(form.durationDays.value),
-        maxAppointments: Number(form.maxAppointments.value),
+        maxAppointments: 0,
         maxProducts: Number(form.maxProducts.value),
-        includesTurnos: form.includesTurnos.checked,
-        includesMenu: form.includesMenu.checked
+        includesTurnos: false,
+        includesMenu: true
       };
       try {
         await setDoc(doc(db, "packages", id), updated);
@@ -299,7 +263,6 @@ function renderPackages() {
   });
 }
 
-// Render Negocios
 document.getElementById("bizSearchInput").addEventListener("input", renderBusinesses);
 document.getElementById("bizFilterSelect").addEventListener("change", renderBusinesses);
 
@@ -341,8 +304,6 @@ function renderBusinesses() {
   container.innerHTML = filtered
     .map((b) => {
       const code = b.private?.accessCode || "—";
-      const usedApp = b.usage?.appointmentsCount || 0;
-      const maxApp = b.limits?.maxAppointments || 0;
       const usedProd = b.usage?.productsCount || 0;
       const maxProd = b.limits?.maxProducts || 0;
       return `
@@ -367,17 +328,17 @@ function renderBusinesses() {
               <strong>${formatDate(b.expiresAt)}</strong>
             </div>
             <div>
-              <span class="text-xs text-muted">Turnos usados:</span><br/>
-              <strong>${usedApp} / ${maxApp}</strong>
-            </div>
-            <div>
               <span class="text-xs text-muted">Productos:</span><br/>
               <strong>${usedProd} / ${maxProd}</strong>
+            </div>
+            <div>
+              <span class="text-xs text-muted">Precio semanal:</span><br/>
+              <strong>${formatCurrency(b.weeklyPrice)}</strong>
             </div>
           </div>
 
           <div class="text-xs text-muted mt-2">
-            Precio: <strong>${formatCurrency(b.weeklyPrice)}</strong> · Último pago: <strong>${formatCurrency(b.private?.lastPaymentAmount || 0)}</strong>
+            Último pago: <strong>${formatCurrency(b.private?.lastPaymentAmount || 0)}</strong>
           </div>
 
           <div class="flex flex-wrap gap-1 mt-3">
@@ -423,7 +384,6 @@ function renderBusinesses() {
   lucide.createIcons();
 }
 
-// Modal Crear / Editar Negocio
 document.getElementById("newBusinessBtn").addEventListener("click", () => openBusinessModal(null));
 document.getElementById("closeBusinessModal").addEventListener("click", () => businessModal.classList.add("hidden"));
 document.getElementById("cancelBusinessModal").addEventListener("click", () => businessModal.classList.add("hidden"));
@@ -435,11 +395,8 @@ document.getElementById("bizPackage").addEventListener("change", (e) => {
   const pkg = packagesState[e.target.value];
   if (pkg) {
     document.getElementById("bizWeeklyPrice").value = pkg.weeklyPrice;
-    document.getElementById("bizMaxAppointments").value = pkg.maxAppointments;
     document.getElementById("bizMaxProducts").value = pkg.maxProducts;
     document.getElementById("bizDurationDays").value = pkg.durationDays || 7;
-    document.getElementById("bizIncludesTurnos").checked = pkg.includesTurnos;
-    document.getElementById("bizIncludesMenu").checked = pkg.includesMenu;
   }
 });
 
@@ -455,11 +412,8 @@ function openBusinessModal(bizId) {
     document.getElementById("bizPackage").value = "basic";
     const pkg = packagesState.basic;
     document.getElementById("bizWeeklyPrice").value = pkg.weeklyPrice;
-    document.getElementById("bizMaxAppointments").value = pkg.maxAppointments;
     document.getElementById("bizMaxProducts").value = pkg.maxProducts;
     document.getElementById("bizDurationDays").value = pkg.durationDays || 7;
-    document.getElementById("bizIncludesTurnos").checked = pkg.includesTurnos;
-    document.getElementById("bizIncludesMenu").checked = pkg.includesMenu;
     document.getElementById("bizAllowOrders").checked = true;
     document.getElementById("bizActive").checked = true;
     document.getElementById("bizPaymentAmount").value = pkg.weeklyPrice;
@@ -475,11 +429,8 @@ function openBusinessModal(bizId) {
     document.getElementById("bizCode").value = biz.private?.accessCode || "";
     document.getElementById("bizPackage").value = biz.packageId || "basic";
     document.getElementById("bizWeeklyPrice").value = biz.weeklyPrice ?? 0;
-    document.getElementById("bizMaxAppointments").value = biz.limits?.maxAppointments ?? 0;
     document.getElementById("bizMaxProducts").value = biz.limits?.maxProducts ?? 0;
     document.getElementById("bizDurationDays").value = biz.durationDays || 7;
-    document.getElementById("bizIncludesTurnos").checked = Boolean(biz.limits?.includesTurnos);
-    document.getElementById("bizIncludesMenu").checked = Boolean(biz.limits?.includesMenu);
     document.getElementById("bizAllowOrders").checked = biz.allowOrders !== false;
     document.getElementById("bizActive").checked = biz.active !== false;
     document.getElementById("bizPaymentAmount").value = biz.private?.lastPaymentAmount ?? 0;
@@ -535,10 +486,10 @@ document.getElementById("businessForm").addEventListener("submit", async (e) => 
       active,
       allowOrders: document.getElementById("bizAllowOrders").checked,
       limits: {
-        maxAppointments: Number(document.getElementById("bizMaxAppointments").value || 0),
+        maxAppointments: 0,
         maxProducts: Number(document.getElementById("bizMaxProducts").value || 0),
-        includesTurnos: document.getElementById("bizIncludesTurnos").checked,
-        includesMenu: document.getElementById("bizIncludesMenu").checked
+        includesTurnos: false,
+        includesMenu: true
       }
     };
 
@@ -547,7 +498,7 @@ document.getElementById("businessForm").addEventListener("submit", async (e) => 
       publicPayload.createdAt = Timestamp.now();
       publicPayload.expiresAt = Timestamp.fromDate(expiresDate);
       publicPayload.usage = { appointmentsCount: 0, productsCount: 0 };
-      publicPayload.theme = { primaryColor: "#4f46e5", accentColor: "#0f172a" };
+      publicPayload.theme = { primaryColor: "#7c3aed", accentColor: "#07192b" };
       batch.set(targetRef, publicPayload);
       batch.set(doc(db, "businesses", targetId, "private", "config"), {
         accessCode: newCode,
@@ -594,7 +545,6 @@ document.getElementById("businessForm").addEventListener("submit", async (e) => 
   }
 });
 
-// Activar / Suspender
 async function toggleBusinessStatus(bizId) {
   const biz = businessesState.find((b) => b.id === bizId);
   if (!biz) return;
@@ -618,7 +568,6 @@ async function toggleBusinessStatus(bizId) {
   }
 }
 
-// Eliminar negocio
 async function deleteBusiness(bizId) {
   const biz = businessesState.find((b) => b.id === bizId);
   if (!biz) return;
@@ -640,7 +589,6 @@ async function deleteBusiness(bizId) {
   }
 }
 
-// Modal Renovar
 document.getElementById("closeRenewModal").addEventListener("click", () => renewModal.classList.add("hidden"));
 document.getElementById("cancelRenewModal").addEventListener("click", () => renewModal.classList.add("hidden"));
 
@@ -652,7 +600,6 @@ function openRenewModal(bizId) {
   document.getElementById("renewDays").value = biz.durationDays || 7;
   document.getElementById("renewAmount").value = biz.weeklyPrice || 0;
   document.getElementById("renewNotes").value = "";
-  document.getElementById("renewResetAppointments").checked = true;
   renewModal.classList.remove("hidden");
 }
 
@@ -665,7 +612,6 @@ document.getElementById("renewForm").addEventListener("submit", async (e) => {
   const days = Number(document.getElementById("renewDays").value || 7);
   const amount = Number(document.getElementById("renewAmount").value || 0);
   const notes = document.getElementById("renewNotes").value.trim();
-  const resetApp = document.getElementById("renewResetAppointments").checked;
 
   const currentExp = toJsDate(biz.expiresAt);
   const baseTime = currentExp && currentExp.getTime() > Date.now() ? currentExp.getTime() : Date.now();
@@ -673,14 +619,10 @@ document.getElementById("renewForm").addEventListener("submit", async (e) => {
 
   try {
     const batch = writeBatch(db);
-    const bizUpdate = {
+    batch.update(doc(db, "businesses", bizId), {
       active: true,
       expiresAt: Timestamp.fromDate(newExpires)
-    };
-    if (resetApp) {
-      bizUpdate["usage.appointmentsCount"] = 0;
-    }
-    batch.update(doc(db, "businesses", bizId), bizUpdate);
+    });
 
     const prevTotal = Number(biz.private?.totalPaid || 0);
     batch.set(
@@ -712,7 +654,6 @@ document.getElementById("renewForm").addEventListener("submit", async (e) => {
   }
 });
 
-// Vencimientos y Pagos
 function renderExpirations() {
   const container = document.getElementById("expirationsList");
   if (businessesState.length === 0) {
@@ -754,32 +695,25 @@ function renderExpirations() {
   lucide.createIcons();
 }
 
-// Actividad global (Turnos y Pedidos)
-document.getElementById("activityTypeFilter").addEventListener("change", renderGlobalActivity);
 document.getElementById("refreshActivityBtn").addEventListener("click", async () => {
   await loadGlobalActivity();
   renderStats();
   renderGlobalActivity();
-  showToast("Actividad actualizada");
+  showToast("Pedidos actualizados");
 });
 
 function renderGlobalActivity() {
-  const filter = document.getElementById("activityTypeFilter").value;
   const container = document.getElementById("globalActivityList");
   const bizMap = new Map(businessesState.map((b) => [b.id, b.name]));
 
-  let items = [];
-  if (filter === "all" || filter === "appointments") items = items.concat(appointmentsState);
-  if (filter === "all" || filter === "orders") items = items.concat(ordersState);
-
-  items.sort((a, b) => {
+  const items = [...ordersState].sort((a, b) => {
     const da = toJsDate(a.createdAt)?.getTime() || 0;
     const dbTime = toJsDate(b.createdAt)?.getTime() || 0;
     return dbTime - da;
   });
 
   if (items.length === 0) {
-    container.innerHTML = `<div class="card empty-state">Aún no hay turnos ni pedidos registrados.</div>`;
+    container.innerHTML = `<div class="card empty-state">Aún no hay pedidos registrados.</div>`;
     return;
   }
 
@@ -787,19 +721,19 @@ function renderGlobalActivity() {
     .slice(0, 60)
     .map((item) => {
       const bizName = bizMap.get(item.businessId) || "Negocio";
-      const isApp = item.type === "appointment";
+      const isBill = item.orderType === "bill";
       return `
         <div class="card card-compact flex-between flex-wrap gap-2">
           <div>
             <div class="flex gap-1 flex-wrap">
-              <span class="badge ${isApp ? "badge-confirmado" : "badge-active"}">${isApp ? "Turno" : "Pedido"}</span>
+              <span class="badge ${isBill ? "badge-pendiente" : "badge-active"}">${isBill ? "🧾 Pide Cuenta" : "Pedido"}</span>
               <strong style="color:var(--dark);">${escapeHtml(bizName)}</strong>
               <span class="badge badge-${escapeHtml(item.status || "pendiente")}">${escapeHtml(item.status || "pendiente")}</span>
             </div>
             <div class="text-sm mt-1">
-              Cliente: <strong>${escapeHtml(item.customerName)}</strong> (${escapeHtml(item.customerPhone)})
-              ${isApp
-                ? `· Servicio: ${escapeHtml(item.serviceName || "—")} · ${escapeHtml(item.date || "")} ${escapeHtml(item.time || "")}`
+              Cliente / Mesa: <strong>${escapeHtml(item.customerName)}</strong> (${escapeHtml(item.customerPhone)})
+              ${isBill
+                ? `· Pago: <strong>${escapeHtml(item.paymentMethod || "A confirmar")}</strong>`
                 : `· Total: <strong>${formatCurrency(item.total || 0)}</strong> (${(item.items || []).length} productos)`}
             </div>
             <div class="text-xs text-muted">${formatDateTime(item.createdAt)}</div>
@@ -808,4 +742,4 @@ function renderGlobalActivity() {
       `;
     })
     .join("");
-}
+                                                           }
