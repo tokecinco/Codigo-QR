@@ -200,10 +200,24 @@ async function loadBusinessDashboard() {
   if (!bizSnap.exists()) throw new Error("Negocio no encontrado");
   currentBiz = { id: bizSnap.id, ...bizSnap.data() };
 
+  // Restablecer colores originales si fueron cambiados previamente
+  if (
+    isBusinessOperational() &&
+    (currentBiz.theme?.primaryColor !== "#7c3aed" || currentBiz.theme?.accentColor !== "#07192b")
+  ) {
+    try {
+      await updateDoc(doc(db, "businesses", currentBusinessId), {
+        theme: { primaryColor: "#7c3aed", accentColor: "#07192b" }
+      });
+      currentBiz.theme = { primaryColor: "#7c3aed", accentColor: "#07192b" };
+    } catch (e) {
+      console.warn("No se pudo restablecer el color:", e);
+    }
+  }
+
   renderHeaderAndLimits();
   renderQueueBoard();
   renderQrSection();
-  fillSettingsForm();
 
   unsubBiz = onSnapshot(doc(db, "businesses", currentBusinessId), (snap) => {
     if (!snap.exists()) return;
@@ -551,7 +565,6 @@ document.getElementById("nextTurnBtn").addEventListener("click", async () => {
   }
 });
 
-// Reiniciar fila a #0 conservando historial atendido
 document.getElementById("resetQueueBtn").addEventListener("click", async () => {
   if (!requireOperational()) return;
   if (!confirm("¿Reiniciar la numeración a #0 para comenzar una nueva jornada? (Se conservará el historial de turnos ya atendidos).")) return;
@@ -586,7 +599,6 @@ document.getElementById("resetQueueBtn").addEventListener("click", async () => {
   }
 });
 
-// Eliminar todo el historial de turnos
 document.getElementById("clearAppointmentsHistoryBtn").addEventListener("click", async () => {
   if (!requireOperational()) return;
   if (appointmentsState.length === 0) {
@@ -1320,7 +1332,6 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Fondo azul petróleo oscuro con degradado
   const bgGrad = ctx.createLinearGradient(0, 0, W, H);
   bgGrad.addColorStop(0, "#051422");
   bgGrad.addColorStop(0.55, "#0a253d");
@@ -1328,14 +1339,12 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Franja superior violeta a turquesa
   const accentGrad = ctx.createLinearGradient(0, 0, W, 0);
   accentGrad.addColorStop(0, "#7c3aed");
   accentGrad.addColorStop(1, "#06b6d4");
   ctx.fillStyle = accentGrad;
   ctx.fillRect(0, 0, W, 16);
 
-  // Etiqueta superior tipo píldora
   const pillW = 340;
   const pillH = 44;
   drawRoundedRect(ctx, (W - pillW) / 2, 54, pillW, pillH, 22);
@@ -1348,7 +1357,6 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
   ctx.textBaseline = "middle";
   ctx.fillText(posterInfo.badge, W / 2, 76);
 
-  // Nombre del negocio y rubro
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 48px sans-serif";
   ctx.textBaseline = "alphabetic";
@@ -1360,7 +1368,6 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
     ctx.fillText(currentBiz.category, W / 2, usedLines > 1 ? 248 : 206);
   }
 
-  // Marco blanco para el QR
   const boxSize = 580;
   const boxX = (W - boxSize) / 2;
   const boxY = 278;
@@ -1372,11 +1379,9 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
   ctx.strokeStyle = "#2dd4bf";
   ctx.stroke();
 
-  // Código QR centrado con margen amplio
   const qrSize = 500;
   ctx.drawImage(sourceEl, (W - qrSize) / 2, boxY + 40, qrSize, qrSize);
 
-  // Instrucciones de escaneo
   ctx.fillStyle = "#2dd4bf";
   ctx.font = "bold 32px sans-serif";
   ctx.fillText(posterInfo.cta, W / 2, 932);
@@ -1391,7 +1396,6 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
     ctx.fillText(`WhatsApp: +${currentBiz.whatsapp.replace(/[^\d]/g, "")}`, W / 2, 1022);
   }
 
-  // Pie de marca
   ctx.fillStyle = "#94a3b8";
   ctx.font = "18px sans-serif";
   ctx.fillText("Impulsado por Toke QR", W / 2, 1078);
@@ -1408,34 +1412,4 @@ function downloadQrPosterPng(elementId, filename, posterInfo) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("Cartel QR descargado en PNG", "success");
   }, "image/png");
-}
-
-// ==========================================
-// PERSONALIZACIÓN Y WHATSAPP
-// ==========================================
-function fillSettingsForm() {
-  document.getElementById("settingWhatsapp").value = currentBiz.whatsapp || "";
-  document.getElementById("settingPrimaryColor").value = currentBiz.theme?.primaryColor || "#7c3aed";
-  document.getElementById("settingAccentColor").value = currentBiz.theme?.accentColor || "#07192b";
-  document.getElementById("settingAllowOrders").checked = currentBiz.allowOrders !== false;
-}
-
-document.getElementById("settingsForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!requireOperational()) return;
-
-  try {
-    await updateDoc(doc(db, "businesses", currentBusinessId), {
-      whatsapp: document.getElementById("settingWhatsapp").value.trim(),
-      allowOrders: document.getElementById("settingAllowOrders").checked,
-      theme: {
-        primaryColor: document.getElementById("settingPrimaryColor").value,
-        accentColor: document.getElementById("settingAccentColor").value
       }
-    });
-    showToast("Personalización guardada", "success");
-  } catch (err) {
-    console.error(err);
-    showToast("Error al guardar cambios", "error");
-  }
-});
