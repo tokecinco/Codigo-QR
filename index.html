@@ -28,7 +28,6 @@
   </header>
 
   <main class="container">
-    <!-- Sección Principal -->
     <section class="landing-hero">
       <div class="hero-badge">
         <i data-lucide="zap" style="width:14px;height:14px;color:var(--turquoise-bright);"></i>
@@ -57,7 +56,6 @@
       </div>
     </section>
 
-    <!-- Acceso Rápido por Código Único -->
     <section class="container-sm" style="padding:0;margin-bottom:24px;">
       <div class="glass-access-card">
         <div class="flex-between mb-2">
@@ -92,7 +90,6 @@
       </div>
     </section>
 
-    <!-- Secciones Diferenciadas: Turnos QR y Menú QR -->
     <section class="grid-2 mb-3">
       <article class="service-showcase service-showcase-violet">
         <div>
@@ -111,15 +108,15 @@
           <ul class="feature-list">
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              El cliente escanea, recibe su número y ve cuántos faltan en vivo
+              <span>El cliente escanea, recibe su número y ve cuántos faltan en vivo</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              Botón "Siguiente número" con aviso directo por WhatsApp
+              <span>Botón "Siguiente número" con aviso directo por WhatsApp</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#c4b5fd;flex-shrink:0;"></i>
-              Historial de turnos del día y total de la semana
+              <span>Historial de turnos del día y total de la semana</span>
             </li>
           </ul>
         </div>
@@ -146,15 +143,15 @@
           <ul class="feature-list">
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
-              Productos con fotos, categorías y colores propios
+              <span>Productos con fotos, categorías y precios claros</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
-              Alerta en tiempo real al recibir pedidos + aviso por WhatsApp
+              <span>Alerta en tiempo real al recibir pedidos + aviso por WhatsApp</span>
             </li>
             <li>
               <i data-lucide="check-circle-2" style="width:15px;height:15px;color:#5eead4;flex-shrink:0;"></i>
-              Resumen de ventas del día y de la semana
+              <span>Resumen de ventas del día y de la semana</span>
             </li>
           </ul>
         </div>
@@ -165,7 +162,6 @@
       </article>
     </section>
 
-    <!-- Paquetes y Precios -->
     <section id="packagesSection" class="mt-4">
       <div class="text-center mb-3">
         <span class="text-xs font-bold" style="color:var(--turquoise-bright);text-transform:uppercase;letter-spacing:0.08em;">
@@ -187,7 +183,6 @@
     </section>
   </main>
 
-  <!-- Modal Solicitar Paquete -->
   <div id="requestPackageModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-2">
@@ -314,27 +309,27 @@
                 <ul class="feature-list">
                   <li>
                     <i data-lucide="${pkg.includesTurnos ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesTurnos ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
-                    ${
+                    <span>${
                       pkg.includesTurnos
                         ? `Turnos QR incluidos (hasta <strong>${pkg.maxAppointments}</strong> turnos)`
                         : "Sin módulo de Turnos QR"
-                    }
+                    }</span>
                   </li>
                   <li>
                     <i data-lucide="${pkg.includesMenu ? "check-circle-2" : "x-circle"}" style="width:16px;height:16px;color:${pkg.includesMenu ? "#5eead4" : "#f87171"};flex-shrink:0;"></i>
-                    ${
+                    <span>${
                       pkg.includesMenu
                         ? `Menú y Catálogo QR (hasta <strong>${pkg.maxProducts}</strong> productos)`
                         : "Sin módulo de Menú QR"
-                    }
+                    }</span>
                   </li>
                   <li>
                     <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
-                    Panel privado con código único (sin correo)
+                    <span>Panel privado con código único (sin correo)</span>
                   </li>
                   <li>
                     <i data-lucide="check-circle-2" style="width:16px;height:16px;color:#5eead4;flex-shrink:0;"></i>
-                    Carteles QR imprimibles en PNG y avisos WhatsApp
+                    <span>Carteles QR imprimibles en PNG y avisos WhatsApp</span>
                   </li>
                 </ul>
               </div>
@@ -402,4 +397,4 @@
     loadLandingPackages();
   </script>
 </body>
-            </html>
+          </html>
