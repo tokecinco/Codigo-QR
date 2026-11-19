@@ -158,10 +158,6 @@
         <i data-lucide="qr-code" style="width:16px;height:16px;"></i>
         Mis Códigos QR
       </button>
-      <button class="tab-btn" data-tab="settings" id="tabBtnSettings">
-        <i data-lucide="palette" style="width:16px;height:16px;"></i>
-        Personalizar
-      </button>
     </nav>
 
     <!-- TAB 1: TURNOS QR -->
@@ -224,7 +220,6 @@
           </div>
         </div>
 
-        <!-- Historial y Resumen de Turnos (Día y Semana) -->
         <div class="card mb-3">
           <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:10px;">Historial de Turnos (Día y Semana)</h2>
           <div class="grid-2 mb-3">
@@ -242,7 +237,6 @@
           <div id="turnosDailyHistoryList" class="grid" style="gap:8px;"></div>
         </div>
 
-        <!-- Servicios de turnos -->
         <div class="card mb-3">
           <div class="flex-between flex-wrap gap-2 mb-2">
             <div>
@@ -257,7 +251,6 @@
           <div id="servicesList" class="grid-2"></div>
         </div>
 
-        <!-- Lista de Turnos -->
         <div class="card">
           <div class="flex-between flex-wrap gap-2 mb-3">
             <div>
@@ -308,7 +301,6 @@
           </div>
         </div>
 
-        <!-- Historial de Ventas (Día y Semana) -->
         <div class="card mb-3">
           <h2 style="font-size:1.08rem;color:var(--dark);margin-bottom:10px;">Historial de Ventas (Día y Semana)</h2>
           <div class="grid-2 mb-3">
@@ -437,39 +429,6 @@
         </div>
       </div>
     </section>
-
-    <!-- TAB 4: PERSONALIZACIÓN -->
-    <section id="tab-settings" class="tab-panel hidden">
-      <form id="settingsForm" class="card container-sm" style="margin:0;">
-        <h2 style="font-size:1.1rem;color:var(--dark);margin-bottom:12px;">Apariencia y WhatsApp</h2>
-
-        <div class="form-group">
-          <label class="form-label">Número de WhatsApp del negocio</label>
-          <input type="tel" id="settingWhatsapp" class="input" placeholder="Ej: 5491122334455" required />
-          <span class="text-xs text-muted">Con código de país, sin espacios ni signo +.</span>
-        </div>
-
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Color principal del catálogo</label>
-            <input type="color" id="settingPrimaryColor" class="input" style="padding:4px;height:46px;" value="#7c3aed" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Color de acento / botones</label>
-            <input type="color" id="settingAccentColor" class="input" style="padding:4px;height:46px;" value="#07192b" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="checkbox-row">
-            <input type="checkbox" id="settingAllowOrders" checked />
-            Permitir que los clientes envíen pedidos desde el Menú QR
-          </label>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-block mt-2">Guardar Cambios</button>
-      </form>
-    </section>
   </main>
 
   <div id="serviceModal" class="modal-backdrop hidden">
@@ -553,4 +512,4 @@
 
   <script type="module" src="js/panel.js"></script>
 </body>
-            </html>
+                </html>
