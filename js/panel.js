@@ -22,6 +22,7 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  toJsDate,
   daysRemaining,
   isExpired,
   buildWhatsAppUrl,
@@ -79,6 +80,20 @@ function stopLiveListeners() {
   if (unsubBiz) { unsubBiz(); unsubBiz = null; }
   if (unsubAppointments) { unsubAppointments(); unsubAppointments = null; }
   if (unsubOrders) { unsubOrders(); unsubOrders = null; }
+}
+
+function getLocalDayKey(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const d = String(dateObj.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getDayLabel(dayKey, todayKey, yesterdayKey) {
+  if (dayKey === todayKey) return "Hoy";
+  if (dayKey === yesterdayKey) return "Ayer";
+  const [y, m, d] = dayKey.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -385,17 +400,17 @@ function startAppointmentsListener() {
   const q = query(collection(db, "businesses", currentBusinessId, "appointments"), orderBy("createdAt", "asc"));
   unsubAppointments = onSnapshot(q, (snap) => {
     appointmentsState = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    appointmentsState.sort((a, b) => (a.ticketNumber || 0) - (b.ticketNumber || 0));
     renderQueueBoard();
+    renderTurnosHistorySummary();
     renderAppointments();
   }, (err) => console.error(err));
 }
 
 function getWaitingAppointments() {
   const currentNum = currentBiz?.queue?.currentNumber || 0;
-  return appointmentsState.filter(
-    (a) => a.status === "pendiente" && (a.ticketNumber || 0) > currentNum
-  );
+  return appointmentsState
+    .filter((a) => a.status === "pendiente" && (a.ticketNumber || 0) > currentNum)
+    .sort((a, b) => (a.ticketNumber || 0) - (b.ticketNumber || 0));
 }
 
 function renderQueueBoard() {
@@ -411,6 +426,65 @@ function renderQueueBoard() {
   document.getElementById("queueNextLabel").textContent = nextApp
     ? `#${nextApp.ticketNumber} — ${nextApp.customerName} (${nextApp.serviceName || "Turno"})`
     : "Sin turnos en espera";
+}
+
+function renderTurnosHistorySummary() {
+  const now = new Date();
+  const todayKey = getLocalDayKey(now);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterdayKey = getLocalDayKey(yesterday);
+  const weekCutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+
+  let todayTotal = 0;
+  let todayAttended = 0;
+  let weekTotal = 0;
+  let weekAttended = 0;
+  const dailyMap = new Map();
+
+  appointmentsState.forEach((a) => {
+    const d = toJsDate(a.createdAt) || new Date();
+    const key = getLocalDayKey(d);
+    const isAttended = a.status === "atendido";
+
+    if (key === todayKey) {
+      todayTotal++;
+      if (isAttended) todayAttended++;
+    }
+    if (d.getTime() >= weekCutoff) {
+      weekTotal++;
+      if (isAttended) weekAttended++;
+      if (!dailyMap.has(key)) {
+        dailyMap.set(key, { total: 0, attended: 0 });
+      }
+      const entry = dailyMap.get(key);
+      entry.total++;
+      if (isAttended) entry.attended++;
+    }
+  });
+
+  document.getElementById("turnosTodayCount").textContent = todayTotal;
+  document.getElementById("turnosTodayAttended").textContent = `${todayAttended} atendidos hoy`;
+  document.getElementById("turnosWeekCount").textContent = weekTotal;
+  document.getElementById("turnosWeekAttended").textContent = `${weekAttended} atendidos (7 días)`;
+
+  const listEl = document.getElementById("turnosDailyHistoryList");
+  const sortedDays = Array.from(dailyMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (sortedDays.length === 0) {
+    listEl.innerHTML = `<div class="text-xs text-muted">Aún no hay actividad registrada esta semana.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = sortedDays
+    .map(([key, info]) => `
+      <div class="flex-between text-sm" style="padding:8px 12px;background:rgba(255,255,255,0.65);border-radius:10px;border:1px solid rgba(13,40,64,0.08);">
+        <strong style="color:var(--dark);">${escapeHtml(getDayLabel(key, todayKey, yesterdayKey))}</strong>
+        <span class="text-xs text-muted">
+          <strong style="color:var(--primary);">${info.total}</strong> turnos · ${info.attended} atendidos
+        </span>
+      </div>
+    `)
+    .join("");
 }
 
 document.getElementById("nextTurnBtn").addEventListener("click", async () => {
@@ -477,9 +551,51 @@ document.getElementById("nextTurnBtn").addEventListener("click", async () => {
   }
 });
 
+// Reiniciar fila a #0 conservando historial atendido
 document.getElementById("resetQueueBtn").addEventListener("click", async () => {
   if (!requireOperational()) return;
-  if (!confirm("¿Reiniciar los números a #0 para comenzar una nueva jornada? Se limpiará la lista actual de turnos.")) return;
+  if (!confirm("¿Reiniciar la numeración a #0 para comenzar una nueva jornada? (Se conservará el historial de turnos ya atendidos).")) return;
+
+  try {
+    const pendingToClose = appointmentsState.filter(
+      (a) => a.status === "pendiente" || a.status === "confirmado"
+    );
+    const chunks = [];
+    for (let i = 0; i < pendingToClose.length; i += 400) {
+      chunks.push(pendingToClose.slice(i, i + 400));
+    }
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach((a) => {
+        batch.update(doc(db, "businesses", currentBusinessId, "appointments", a.id), {
+          status: "cancelado"
+        });
+      });
+      await batch.commit();
+    }
+
+    await updateDoc(doc(db, "businesses", currentBusinessId), {
+      queue: { currentNumber: 0, lastNumber: 0 }
+    });
+
+    document.getElementById("nextTurnWaBanner").classList.add("hidden");
+    showToast("Numeración reiniciada a #0", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("No se pudo reiniciar la fila", "error");
+  }
+});
+
+// Eliminar todo el historial de turnos
+document.getElementById("clearAppointmentsHistoryBtn").addEventListener("click", async () => {
+  if (!requireOperational()) return;
+  if (appointmentsState.length === 0) {
+    showToast("No hay turnos en el historial.");
+    return;
+  }
+  if (!confirm("¿Seguro que deseas eliminar todo el historial de turnos? Esta acción no se puede deshacer.")) {
+    return;
+  }
 
   try {
     const chunks = [];
@@ -499,10 +615,10 @@ document.getElementById("resetQueueBtn").addEventListener("click", async () => {
     });
 
     document.getElementById("nextTurnWaBanner").classList.add("hidden");
-    showToast("Fila reiniciada a #0", "success");
+    showToast("Historial de turnos eliminado", "success");
   } catch (err) {
     console.error(err);
-    showToast("No se pudo reiniciar la fila", "error");
+    showToast("Error al eliminar historial de turnos", "error");
   }
 });
 
@@ -515,7 +631,18 @@ document.getElementById("refreshAppointmentsBtn").addEventListener("click", asyn
 function renderAppointments() {
   const filter = document.getElementById("appointmentStatusFilter").value;
   const container = document.getElementById("appointmentsList");
-  const list = appointmentsState.filter((a) => filter === "all" || a.status === filter);
+  const list = appointmentsState
+    .filter((a) => filter === "all" || a.status === filter)
+    .sort((a, b) => {
+      const aActive = a.status === "pendiente" || a.status === "confirmado";
+      const bActive = b.status === "pendiente" || b.status === "confirmado";
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      if (aActive && bActive) return (a.ticketNumber || 0) - (b.ticketNumber || 0);
+      const ta = toJsDate(a.createdAt)?.getTime() || 0;
+      const tb = toJsDate(b.createdAt)?.getTime() || 0;
+      return tb - ta;
+    });
 
   if (list.length === 0) {
     container.innerHTML = `<div class="empty-state text-sm">No hay números en esta categoría.</div>`;
@@ -881,6 +1008,7 @@ async function deleteProduct(id) {
   }
 }
 
+// Pedidos y Ventas (Día y Semana)
 function startOrdersListener() {
   const q = query(collection(db, "businesses", currentBusinessId, "orders"), orderBy("createdAt", "desc"));
   unsubOrders = onSnapshot(q, (snap) => {
@@ -902,8 +1030,68 @@ function startOrdersListener() {
     knownOrderIds = new Set(newOrders.map((o) => o.id));
     firstOrdersLoad = false;
     ordersState = newOrders;
+    renderSalesHistorySummary();
     renderOrders();
   }, (err) => console.error(err));
+}
+
+function renderSalesHistorySummary() {
+  const now = new Date();
+  const todayKey = getLocalDayKey(now);
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yesterdayKey = getLocalDayKey(yesterday);
+  const weekCutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+
+  let todayAmount = 0;
+  let todayCount = 0;
+  let weekAmount = 0;
+  let weekCount = 0;
+  const dailyMap = new Map();
+
+  ordersState.forEach((o) => {
+    const d = toJsDate(o.createdAt) || new Date();
+    const key = getLocalDayKey(d);
+    const total = Number(o.total || 0);
+
+    if (key === todayKey) {
+      todayAmount += total;
+      todayCount++;
+    }
+    if (d.getTime() >= weekCutoff) {
+      weekAmount += total;
+      weekCount++;
+      if (!dailyMap.has(key)) {
+        dailyMap.set(key, { count: 0, amount: 0 });
+      }
+      const entry = dailyMap.get(key);
+      entry.count++;
+      entry.amount += total;
+    }
+  });
+
+  document.getElementById("salesTodayAmount").textContent = formatCurrency(todayAmount);
+  document.getElementById("salesTodayCount").textContent = `${todayCount} pedidos hoy`;
+  document.getElementById("salesWeekAmount").textContent = formatCurrency(weekAmount);
+  document.getElementById("salesWeekCount").textContent = `${weekCount} pedidos (7 días)`;
+
+  const listEl = document.getElementById("salesDailyHistoryList");
+  const sortedDays = Array.from(dailyMap.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (sortedDays.length === 0) {
+    listEl.innerHTML = `<div class="text-xs text-muted">Aún no hay ventas registradas esta semana.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = sortedDays
+    .map(([key, info]) => `
+      <div class="flex-between text-sm" style="padding:8px 12px;background:rgba(255,255,255,0.65);border-radius:10px;border:1px solid rgba(13,40,64,0.08);">
+        <strong style="color:var(--dark);">${escapeHtml(getDayLabel(key, todayKey, yesterdayKey))}</strong>
+        <span class="text-xs text-muted">
+          ${info.count} pedidos · <strong style="color:var(--success);font-size:0.86rem;">${formatCurrency(info.amount)}</strong>
+        </span>
+      </div>
+    `)
+    .join("");
 }
 
 document.getElementById("dismissOrderAlertBtn").addEventListener("click", () => {
@@ -912,6 +1100,7 @@ document.getElementById("dismissOrderAlertBtn").addEventListener("click", () => 
 
 document.getElementById("orderStatusFilter").addEventListener("change", renderOrders);
 document.getElementById("refreshOrdersBtn").addEventListener("click", () => {
+  renderSalesHistorySummary();
   renderOrders();
   showToast("Pedidos actualizados");
 });
@@ -1026,7 +1215,7 @@ function renderOrders() {
 }
 
 // ==========================================
-// MÓDULO CÓDIGOS QR EN PNG
+// MÓDULO CÓDIGOS QR + CARTEL IMPRIMIBLE PNG + WHATSAPP
 // ==========================================
 function renderQrSection() {
   const baseUrl = getBaseUrl();
@@ -1040,19 +1229,33 @@ function renderQrSection() {
   menuCard.classList.toggle("hidden", !currentBiz.limits?.includesMenu);
 
   if (currentBiz.limits?.includesTurnos) {
+    document.getElementById("qrTurnosBizName").textContent = currentBiz.name || "Mi Negocio";
     document.getElementById("qrTurnosUrlText").textContent = turnosUrl;
     drawQr("qrTurnosCanvas", turnosUrl);
     document.getElementById("copyTurnosLinkBtn").onclick = () => copyToClipboard(turnosUrl);
+    document.getElementById("shareTurnosWaBtn").href =
+      `https://wa.me/?text=${encodeURIComponent(`¡Hola! Saca tu número de turno en *${currentBiz.name}* desde este enlace:\n${turnosUrl}`)}`;
     document.getElementById("downloadTurnosQrBtn").onclick = () =>
-      downloadQrPng("qrTurnosCanvas", `QR-Turnos-${currentBiz.name}.png`);
+      downloadQrPosterPng("qrTurnosCanvas", `Cartel-Turnos-${currentBiz.name}.png`, {
+        badge: "TURNOS QR EN VIVO",
+        cta: "Escanea para sacar tu número",
+        sub: "Sigue cuántos faltan en tiempo real desde tu celular"
+      });
   }
 
   if (currentBiz.limits?.includesMenu) {
+    document.getElementById("qrMenuBizName").textContent = currentBiz.name || "Mi Negocio";
     document.getElementById("qrMenuUrlText").textContent = menuUrl;
     drawQr("qrMenuCanvas", menuUrl);
     document.getElementById("copyMenuLinkBtn").onclick = () => copyToClipboard(menuUrl);
+    document.getElementById("shareMenuWaBtn").href =
+      `https://wa.me/?text=${encodeURIComponent(`¡Hola! Mira nuestro menú digital y haz tu pedido en *${currentBiz.name}* aquí:\n${menuUrl}`)}`;
     document.getElementById("downloadMenuQrBtn").onclick = () =>
-      downloadQrPng("qrMenuCanvas", `QR-Menu-${currentBiz.name}.png`);
+      downloadQrPosterPng("qrMenuCanvas", `Cartel-Menu-${currentBiz.name}.png`, {
+        badge: "MENÚ Y PEDIDOS QR",
+        cta: "Escanea para ver nuestro menú",
+        sub: "Consulta productos, precios y haz tu pedido al instante"
+      });
   }
 }
 
@@ -1063,30 +1266,137 @@ function drawQr(elementId, url) {
     text: url,
     width: 512,
     height: 512,
-    colorDark: "#0f172a",
+    colorDark: "#07192b",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H
   });
 }
 
-function downloadQrPng(elementId, filename) {
+function drawRoundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 2) {
+  const words = String(text || "").split(" ");
+  let line = "";
+  let lines = [];
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line ? `${line} ${words[i]}` : words[i];
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      lines.push(line);
+      line = words[i];
+      if (lines.length >= maxLines) break;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  lines.forEach((l, idx) => ctx.fillText(l, x, y + idx * lineHeight));
+  return lines.length;
+}
+
+function downloadQrPosterPng(elementId, filename, posterInfo) {
   const container = document.getElementById(elementId);
-  const sourceCanvas = container.querySelector("canvas");
-  if (!sourceCanvas) {
-    showToast("No se pudo generar el PNG", "error");
+  const sourceEl = container.querySelector("canvas") || container.querySelector("img");
+  if (!sourceEl) {
+    showToast("No se pudo generar el cartel PNG", "error");
     return;
   }
 
-  const padding = 32;
-  const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = sourceCanvas.width + padding * 2;
-  exportCanvas.height = sourceCanvas.height + padding * 2;
-  const ctx = exportCanvas.getContext("2d");
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-  ctx.drawImage(sourceCanvas, padding, padding);
+  const W = 840;
+  const H = 1120;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
 
-  exportCanvas.toBlob((blob) => {
+  // Fondo azul petróleo oscuro con degradado
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#051422");
+  bgGrad.addColorStop(0.55, "#0a253d");
+  bgGrad.addColorStop(1, "#071b2e");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Franja superior violeta a turquesa
+  const accentGrad = ctx.createLinearGradient(0, 0, W, 0);
+  accentGrad.addColorStop(0, "#7c3aed");
+  accentGrad.addColorStop(1, "#06b6d4");
+  ctx.fillStyle = accentGrad;
+  ctx.fillRect(0, 0, W, 16);
+
+  // Etiqueta superior tipo píldora
+  const pillW = 340;
+  const pillH = 44;
+  drawRoundedRect(ctx, (W - pillW) / 2, 54, pillW, pillH, 22);
+  ctx.fillStyle = accentGrad;
+  ctx.fill();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(posterInfo.badge, W / 2, 76);
+
+  // Nombre del negocio y rubro
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 48px sans-serif";
+  ctx.textBaseline = "alphabetic";
+  const usedLines = drawWrappedText(ctx, currentBiz.name || "Mi Negocio", W / 2, 160, W - 100, 54, 2);
+
+  if (currentBiz.category) {
+    ctx.fillStyle = "#5eead4";
+    ctx.font = "600 24px sans-serif";
+    ctx.fillText(currentBiz.category, W / 2, usedLines > 1 ? 248 : 206);
+  }
+
+  // Marco blanco para el QR
+  const boxSize = 580;
+  const boxX = (W - boxSize) / 2;
+  const boxY = 278;
+  drawRoundedRect(ctx, boxX, boxY, boxSize, boxSize, 32);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#2dd4bf";
+  ctx.stroke();
+
+  // Código QR centrado con margen amplio
+  const qrSize = 500;
+  ctx.drawImage(sourceEl, (W - qrSize) / 2, boxY + 40, qrSize, qrSize);
+
+  // Instrucciones de escaneo
+  ctx.fillStyle = "#2dd4bf";
+  ctx.font = "bold 32px sans-serif";
+  ctx.fillText(posterInfo.cta, W / 2, 932);
+
+  ctx.fillStyle = "#cbd5e1";
+  ctx.font = "22px sans-serif";
+  ctx.fillText(posterInfo.sub, W / 2, 974);
+
+  if (currentBiz.whatsapp) {
+    ctx.fillStyle = "#86efac";
+    ctx.font = "600 21px sans-serif";
+    ctx.fillText(`WhatsApp: +${currentBiz.whatsapp.replace(/[^\d]/g, "")}`, W / 2, 1022);
+  }
+
+  // Pie de marca
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "18px sans-serif";
+  ctx.fillText("Impulsado por Toke QR", W / 2, 1078);
+
+  canvas.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1096,7 +1406,7 @@ function downloadQrPng(elementId, filename) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast("QR descargado en PNG", "success");
+    showToast("Cartel QR descargado en PNG", "success");
   }, "image/png");
 }
 
