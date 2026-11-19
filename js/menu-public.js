@@ -28,6 +28,7 @@ const catalogEl = document.getElementById("menuCatalogView");
 const successEl = document.getElementById("orderSuccessView");
 const cartBarEl = document.getElementById("cartBar");
 const cartModalEl = document.getElementById("cartModal");
+const billModalEl = document.getElementById("billModal");
 
 window.addEventListener("DOMContentLoaded", async () => {
   lucide.createIcons();
@@ -67,6 +68,9 @@ async function initMenuPage() {
       return;
     }
 
+    const allowOrders = currentBiz.allowOrders !== false;
+    document.getElementById("billActionBar").classList.toggle("hidden", !allowOrders);
+
     const [catSnap, prodSnap] = await Promise.all([
       getDocs(collection(db, "businesses", businessId, "categories")),
       getDocs(collection(db, "businesses", businessId, "products"))
@@ -94,8 +98,8 @@ function applyBranding() {
   document.getElementById("menuBizName").textContent = currentBiz.name || "Catálogo";
   document.getElementById("menuBizCategory").textContent = currentBiz.category || "Menú QR";
 
-  const primary = currentBiz.theme?.primaryColor || "#4f46e5";
-  const accent = currentBiz.theme?.accentColor || "#0f172a";
+  const primary = currentBiz.theme?.primaryColor || "#7c3aed";
+  const accent = currentBiz.theme?.accentColor || "#07192b";
   document.documentElement.style.setProperty("--primary", primary);
   document.documentElement.style.setProperty("--dark", accent);
   document.getElementById("menuBrandIcon").style.background = primary;
@@ -195,12 +199,12 @@ function renderProductsGrid() {
           <div class="product-body">
             <div>
               <span class="text-xs text-muted">${escapeHtml(p.categoryName || "General")}</span>
-              <h3 style="font-size:1.02rem;color:var(--dark);margin-top:2px;">${escapeHtml(p.name)}</h3>
+              <h3 style="font-size:1rem;color:var(--dark);margin-top:2px;">${escapeHtml(p.name)}</h3>
               ${p.description ? `<p class="text-xs text-muted mt-1">${escapeHtml(p.description)}</p>` : ""}
             </div>
             <div>
-              <div class="flex-between mt-2">
-                <strong style="font-size:1.12rem;color:var(--primary);">${formatCurrency(p.price)}</strong>
+              <div class="flex-between mt-1">
+                <strong style="font-size:1.05rem;color:var(--primary);">${formatCurrency(p.price)}</strong>
                 ${
                   allowOrders
                     ? qty > 0
@@ -277,7 +281,6 @@ function renderCartBar() {
   cartBarEl.classList.remove("hidden");
 }
 
-// Modal del carrito
 document.getElementById("openCartModalBtn").addEventListener("click", () => {
   renderCartModal();
   cartModalEl.classList.remove("hidden");
@@ -329,7 +332,6 @@ function renderCartModal() {
   );
 }
 
-// Enviar pedido
 document.getElementById("checkoutOrderForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (cart.size === 0) return;
@@ -352,6 +354,7 @@ document.getElementById("checkoutOrderForm").addEventListener("submit", async (e
     const { total } = getCartTotals();
 
     await addDoc(collection(db, "businesses", businessId, "orders"), {
+      orderType: "order",
       customerName,
       customerPhone,
       notes,
@@ -369,8 +372,11 @@ document.getElementById("checkoutOrderForm").addEventListener("submit", async (e
       .map((i) => `• ${i.qty}x ${i.name} (${formatCurrency(i.price * i.qty)})`)
       .join("<br/>");
 
+    document.getElementById("orderSuccessTitle").textContent = "¡Pedido enviado!";
+    document.getElementById("orderSuccessSubtitle").textContent =
+      "El negocio recibió tu pedido. Cuando esté listo te avisarán por WhatsApp.";
     document.getElementById("orderSuccessSummary").innerHTML = `
-      <div><strong>Cliente:</strong> ${escapeHtml(customerName)}</div>
+      <div><strong>Cliente / Mesa:</strong> ${escapeHtml(customerName)}</div>
       <div class="mt-1">${summaryLines}</div>
       ${notes ? `<div class="mt-1"><strong>Notas:</strong> ${escapeHtml(notes)}</div>` : ""}
       <div class="mt-1"><strong>Total:</strong> ${formatCurrency(total)}</div>
@@ -381,7 +387,7 @@ document.getElementById("checkoutOrderForm").addEventListener("submit", async (e
       const waTextItems = items.map((i) => `- ${i.qty}x ${i.name}`).join("\n");
       waBtn.href = buildWhatsAppUrl(
         currentBiz.whatsapp,
-        `Hola ${currentBiz.name}, hice un pedido desde el Menú QR:\n${waTextItems}\nTotal: ${formatCurrency(total)}\nNombre: ${customerName}${notes ? `\nNota: ${notes}` : ""}`
+        `Hola ${currentBiz.name}, hice un pedido desde el Menú QR:\n${waTextItems}\nTotal: ${formatCurrency(total)}\nCliente/Mesa: ${customerName}${notes ? `\nNota: ${notes}` : ""}`
       );
       waBtn.classList.remove("hidden");
     } else {
@@ -398,6 +404,79 @@ document.getElementById("checkoutOrderForm").addEventListener("submit", async (e
   } finally {
     btn.disabled = false;
     btn.textContent = "Enviar Pedido";
+  }
+});
+
+document.getElementById("openBillModalBtn").addEventListener("click", () => {
+  billModalEl.classList.remove("hidden");
+});
+document.getElementById("closeBillModal").addEventListener("click", () => {
+  billModalEl.classList.add("hidden");
+});
+
+document.getElementById("checkoutBillForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const tableOrName = document.getElementById("billTableOrName").value.trim();
+  const paymentMethod = document.getElementById("billPaymentMethod").value;
+  const rawPhone = document.getElementById("billCustomerPhone").value.trim();
+  const notes = document.getElementById("billNotes").value.trim();
+
+  if (rawPhone && rawPhone.replace(/[^\d]/g, "").length < 6) {
+    showToast("Ingresa un WhatsApp válido o déjalo vacío.", "error");
+    return;
+  }
+
+  const phoneToSave = rawPhone || "Sin WhatsApp";
+  const btn = document.getElementById("submitBillBtn");
+  btn.disabled = true;
+  btn.textContent = "Enviando solicitud...";
+
+  try {
+    await addDoc(collection(db, "businesses", businessId, "orders"), {
+      orderType: "bill",
+      customerName: tableOrName,
+      customerPhone: phoneToSave,
+      paymentMethod,
+      notes,
+      items: [{ id: "bill", name: `Solicita la cuenta (${paymentMethod})`, price: 0, qty: 1 }],
+      total: 0,
+      status: "pendiente",
+      createdAt: serverTimestamp()
+    });
+
+    billModalEl.classList.add("hidden");
+    catalogEl.classList.add("hidden");
+    cartBarEl.classList.add("hidden");
+
+    document.getElementById("orderSuccessTitle").textContent = "¡Cuenta solicitada!";
+    document.getElementById("orderSuccessSubtitle").textContent =
+      "Ya avisamos al local. En breve se acercarán a tu mesa con la cuenta.";
+    document.getElementById("orderSuccessSummary").innerHTML = `
+      <div><strong>Mesa / Nombre:</strong> ${escapeHtml(tableOrName)}</div>
+      <div class="mt-1"><strong>Forma de pago:</strong> ${escapeHtml(paymentMethod)}</div>
+      ${notes ? `<div class="mt-1"><strong>Notas:</strong> ${escapeHtml(notes)}</div>` : ""}
+    `;
+
+    const waBtn = document.getElementById("orderSuccessWaBtn");
+    if (currentBiz.whatsapp) {
+      waBtn.href = buildWhatsAppUrl(
+        currentBiz.whatsapp,
+        `Hola ${currentBiz.name}, pedimos la cuenta desde el Menú QR:\n• Mesa / Nombre: ${tableOrName}\n• Forma de pago: ${paymentMethod}${notes ? `\n• Nota: ${notes}` : ""}`
+      );
+      waBtn.classList.remove("hidden");
+    } else {
+      waBtn.classList.add("hidden");
+    }
+
+    successEl.classList.remove("hidden");
+    showToast("¡Solicitud de cuenta enviada!", "success");
+    lucide.createIcons();
+  } catch (err) {
+    console.error(err);
+    showToast("No se pudo enviar la solicitud.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Solicitar cuenta ahora";
   }
 });
 
