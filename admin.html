@@ -24,7 +24,6 @@
     </div>
   </header>
 
-  <!-- Pantalla de Login -->
   <main id="adminLoginView" class="container-sm" style="padding-top:42px;">
     <div class="card">
       <div class="text-center mb-3">
@@ -50,9 +49,7 @@
     </div>
   </main>
 
-  <!-- Panel Principal Administrador -->
   <main id="adminDashboardView" class="container hidden">
-    <!-- Estadísticas -->
     <section class="grid-4 mb-3">
       <div class="stat-card">
         <div class="stat-label">Negocios activos</div>
@@ -65,18 +62,17 @@
         <div class="text-xs text-muted">requieren atención</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Turnos totales</div>
-        <div class="stat-value" id="statTotalAppointments">0</div>
+        <div class="stat-label">Pedidos totales</div>
+        <div class="stat-value" id="statTotalOrders">0</div>
         <div class="text-xs text-muted">en toda la plataforma</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Pedidos / Ingresos</div>
-        <div class="stat-value" id="statTotalOrders">0</div>
-        <div class="text-xs text-muted" id="statTotalRevenue">$0 recaudados</div>
+        <div class="stat-label">Ingresos</div>
+        <div class="stat-value" id="statTotalRevenue">$0</div>
+        <div class="text-xs text-muted">recaudados en planes</div>
       </div>
     </section>
 
-    <!-- Pestañas -->
     <nav class="tabs">
       <button class="tab-btn active" data-tab="businesses">
         <i data-lucide="store" style="width:16px;height:16px;"></i>
@@ -91,12 +87,11 @@
         Vencimientos y Pagos
       </button>
       <button class="tab-btn" data-tab="activity">
-        <i data-lucide="activity" style="width:16px;height:16px;"></i>
-        Turnos y Pedidos
+        <i data-lucide="shopping-bag" style="width:16px;height:16px;"></i>
+        Pedidos
       </button>
     </nav>
 
-    <!-- TAB 1: Negocios -->
     <section id="tab-businesses" class="tab-panel">
       <div class="card mb-3">
         <div class="flex-between flex-wrap gap-2">
@@ -119,14 +114,10 @@
       <div id="businessesList" class="grid-2"></div>
     </section>
 
-    <!-- TAB 2: Paquetes -->
     <section id="tab-packages" class="tab-panel hidden">
-      <div class="grid-2" id="packagesContainer">
-        <!-- Se llena dinámicamente con Básico y Premium -->
-      </div>
+      <div class="grid-2" id="packagesContainer"></div>
     </section>
 
-    <!-- TAB 3: Vencimientos y Pagos -->
     <section id="tab-expirations" class="tab-panel hidden">
       <div class="card mb-3">
         <h2 style="font-size:1.1rem;color:var(--dark);">Control de Vencimientos y Suscripciones</h2>
@@ -135,32 +126,23 @@
       <div id="expirationsList" class="grid"></div>
     </section>
 
-    <!-- TAB 4: Turnos y Pedidos Globales -->
     <section id="tab-activity" class="tab-panel hidden">
       <div class="card mb-3">
         <div class="flex-between flex-wrap gap-2">
           <div>
-            <h2 style="font-size:1.1rem;color:var(--dark);">Turnos y Pedidos de la Plataforma</h2>
-            <p class="text-sm text-muted">Supervisión en tiempo real de todos los clientes.</p>
+            <h2 style="font-size:1.1rem;color:var(--dark);">Pedidos y Cuentas de la Plataforma</h2>
+            <p class="text-sm text-muted">Supervisión en tiempo real de todos los negocios.</p>
           </div>
-          <div class="flex gap-2">
-            <select id="activityTypeFilter" class="select" style="max-width:170px;">
-              <option value="all">Turnos y Pedidos</option>
-              <option value="appointments">Solo Turnos</option>
-              <option value="orders">Solo Pedidos</option>
-            </select>
-            <button id="refreshActivityBtn" class="btn btn-outline btn-sm">
-              <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
-              Actualizar
-            </button>
-          </div>
+          <button id="refreshActivityBtn" class="btn btn-outline btn-sm">
+            <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i>
+            Actualizar
+          </button>
         </div>
       </div>
       <div id="globalActivityList" class="grid"></div>
     </section>
   </main>
 
-  <!-- Modal Crear / Editar Negocio -->
   <div id="businessModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-3">
@@ -174,11 +156,11 @@
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Nombre del negocio *</label>
-            <input type="text" id="bizName" class="input" placeholder="Ej: Barbería Central" required />
+            <input type="text" id="bizName" class="input" placeholder="Ej: Resto Bar Central" required />
           </div>
           <div class="form-group">
             <label class="form-label">Rubro / Categoría</label>
-            <input type="text" id="bizCategory" class="input" placeholder="Ej: Barbería, Restaurante" />
+            <input type="text" id="bizCategory" class="input" placeholder="Ej: Restaurante, Tienda" />
           </div>
         </div>
 
@@ -214,11 +196,7 @@
           </div>
         </div>
 
-        <div class="grid-3">
-          <div class="form-group">
-            <label class="form-label">Máx. Turnos</label>
-            <input type="number" id="bizMaxAppointments" class="input" min="0" required />
-          </div>
+        <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Máx. Productos</label>
             <input type="number" id="bizMaxProducts" class="input" min="0" required />
@@ -230,18 +208,9 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Servicios habilitados</label>
-          <label class="checkbox-row">
-            <input type="checkbox" id="bizIncludesTurnos" checked />
-            Incluir Turnos QR
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" id="bizIncludesMenu" checked />
-            Incluir Menú y Catálogo QR
-          </label>
           <label class="checkbox-row">
             <input type="checkbox" id="bizAllowOrders" checked />
-            Permitir pedidos por QR en Menú (bares / restaurantes)
+            Permitir pedidos y "Pedir la cuenta" por QR en el Menú
           </label>
           <label class="checkbox-row">
             <input type="checkbox" id="bizActive" checked />
@@ -268,7 +237,6 @@
     </div>
   </div>
 
-  <!-- Modal Renovar Suscripción -->
   <div id="renewModal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="flex-between mb-3">
@@ -294,11 +262,6 @@
           <label class="form-label">Notas del pago</label>
           <input type="text" id="renewNotes" class="input" placeholder="Ej: Renovación semanal" />
         </div>
-
-        <label class="checkbox-row">
-          <input type="checkbox" id="renewResetAppointments" checked />
-          Reiniciar contador de turnos usados de la semana a 0
-        </label>
 
         <div class="flex gap-2 mt-3">
           <button type="button" id="cancelRenewModal" class="btn btn-outline" style="flex:1;">Cancelar</button>
